@@ -21,7 +21,7 @@ export default function LoginScreen({}: LoginScreenProps) {
   };
 
   const handleSignUp = () => {
-    Alert.alert("Sign Up", "Sign-up functionality is coming soon!");
+    router.replace('/(auth)/signup');
   };
 
   return (

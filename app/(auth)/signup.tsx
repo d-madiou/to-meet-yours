@@ -6,35 +6,47 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
-  Alert,
-  Image,
-  ImageBackground,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ImageBackground,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
-interface LoginScreenProps {}
-
-// The login service 
+// Let's import the the authservice
 import { authService } from "@/src/services/api/auth.service";
 
-const BACKGROUND_IMAGE = require("../../assets/login.png");
+interface SignupScreenProps {}
 
-export default function LoginScreen({}: LoginScreenProps) {
+const BACKGROUND_IMAGE = require("../../assets/register1.png");
+
+export default function SignupScreen({}: SignupScreenProps) {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({
+    email: "",
+    username: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const validateForm = () => {
     let valid = true;
-    const newErrors = { email: "", password: "" };
+    const newErrors = {
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+    };
 
+    // Email validation
     if (!email) {
       newErrors.email = "Email is required";
       valid = false;
@@ -43,6 +55,16 @@ export default function LoginScreen({}: LoginScreenProps) {
       valid = false;
     }
 
+    // Username validation
+    if (!username) {
+      newErrors.username = "Username is required";
+      valid = false;
+    } else if (username.length < 3) {
+      newErrors.username = "Username must be at least 3 characters";
+      valid = false;
+    }
+
+    // Password validation
     if (!password) {
       newErrors.password = "Password is required";
       valid = false;
@@ -51,32 +73,48 @@ export default function LoginScreen({}: LoginScreenProps) {
       valid = false;
     }
 
+    // Confirm password validation
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+      valid = false;
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+      valid = false;
+    }
+
     setErrors(newErrors);
     return valid;
   };
 
- const handleLogin = async () => {
+  const handleSignup = async () => {
   if (!validateForm()) return;
 
   setLoading(true);
+
   try {
-    const response = await authService.login({
+    const response = await authService.register({
       email,
+      username,
       password,
+      password_confirm: confirmPassword,
     });
 
-    Alert.alert("Success", "Login successful!");
-    router.replace("/makeprofile");
+    Alert.alert("Success", response.message || "Account created successfully!", [
+      {
+        text: "OK",
+        onPress: () => router.replace("/(auth)/login"),
+      },
+    ]);
   } catch (error: any) {
-    Alert.alert("Login failed", error.message || "Something went wrong");
+    Alert.alert("Registration Failed", error.message || "Something went wrong.");
   } finally {
     setLoading(false);
   }
 };
 
 
-  const handleForgotPassword = () => {
-    router.push("/(auth)/login");
+  const handleBackPress = () => {
+    router.replace("/");
   };
 
   return (
@@ -104,29 +142,29 @@ export default function LoginScreen({}: LoginScreenProps) {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Back Button */}
+              {/* Back Button - Goes to first page */}
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => router.replace('/firstPage')}
+                onPress={handleBackPress}
                 activeOpacity={0.7}
               >
                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
               </TouchableOpacity>
 
               {/* Logo */}
-              <View style={styles.logoContainer}>
+              {/* <View style={styles.logoContainer}>
                 <Image
                   source={require("../../assets/Splash2.png")}
                   style={styles.logo}
                   resizeMode="contain"
                 />
-              </View>
+              </View> */}
 
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.title}>Welcome back</Text>
+                <Text style={styles.title}>Welcome to GTM</Text>
                 <Text style={styles.subtitle}>
-                  Login to your account to continue
+                  Sign up to create a new account
                 </Text>
               </View>
 
@@ -146,6 +184,18 @@ export default function LoginScreen({}: LoginScreenProps) {
                 />
 
                 <Input
+                  placeholder="Username"
+                  value={username}
+                  onChangeText={(text) => {
+                    setUsername(text);
+                    if (errors.username) setErrors({ ...errors, username: "" });
+                  }}
+                  autoCapitalize="none"
+                  iconName="person-outline"
+                  error={errors.username}
+                />
+
+                <Input
                   placeholder="Password"
                   value={password}
                   onChangeText={(text) => {
@@ -157,30 +207,42 @@ export default function LoginScreen({}: LoginScreenProps) {
                   error={errors.password}
                 />
 
+                <Input
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    if (errors.confirmPassword)
+                      setErrors({ ...errors, confirmPassword: "" });
+                  }}
+                  isPassword
+                  iconName="lock-closed-outline"
+                  error={errors.confirmPassword}
+                />
+
                 <Button
-                  title="Login"
-                  onPress={handleLogin}
+                  title="Sign Up"
+                  onPress={handleSignup}
                   loading={loading}
                   variant="primary"
-                  style={styles.loginButton}
+                  style={styles.signupButton}
                 />
               </View>
 
-              {/* Forgot Password */}
-              <TouchableOpacity
-                onPress={handleForgotPassword}
-                style={styles.forgotPasswordContainer}
-              >
-                <Text style={styles.forgotPasswordText}>
-                  Forgot your password?
+              {/* Terms and Conditions */}
+              <View style={styles.termsContainer}>
+                <Text style={styles.termsText}>
+                  By signing up, you agree to our{" "}
+                  <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
                 </Text>
-              </TouchableOpacity>
+              </View>
 
-              {/* Sign Up Link */}
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
-                  <Text style={styles.signupLink}>Sign Up</Text>
+              {/* Sign In Link */}
+              <View style={styles.signinContainer}>
+                <Text style={styles.signinText}>Already have an account? </Text>
+                <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
+                  <Text style={styles.signinLink}>Sign In</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -228,7 +290,8 @@ const styles = StyleSheet.create({
     height: 100,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 30,
+    marginTop: 150,
   },
   title: {
     fontSize: 36,
@@ -242,30 +305,36 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 25,
   },
-  loginButton: {
+  signupButton: {
     marginTop: 10,
   },
-  forgotPasswordContainer: {
+  termsContainer: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
-  forgotPasswordText: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 14,
+  termsText: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: "#FF1654",
     textDecorationLine: "underline",
   },
-  signupContainer: {
+  signinContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
-  signupText: {
+  signinText: {
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 14,
   },
-  signupLink: {
+  signinLink: {
     color: "#FF1654",
     fontSize: 14,
     fontWeight: "600",
