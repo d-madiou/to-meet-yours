@@ -5,14 +5,14 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
-    ImageBackground,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { authService } from "@/src/services/api/auth.service";
@@ -24,7 +24,7 @@ export default function LoginSuccessScreen() {
   const [loading, setLoading] = useState(true);
 
   const handlePress = () => {
-    router.replace("/makeprofile");
+    router.replace("/profileinfo");
   };
 
   useEffect(() => {

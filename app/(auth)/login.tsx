@@ -64,8 +64,6 @@ export default function LoginScreen({}: LoginScreenProps) {
       email,
       password,
     });
-
-    Alert.alert("Success", "Login successful!");
     router.replace("/makeprofile");
   } catch (error: any) {
     Alert.alert("Login failed", error.message || "Something went wrong");
