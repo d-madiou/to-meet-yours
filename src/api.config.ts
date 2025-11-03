@@ -18,6 +18,10 @@ export const ENDPOINTS = {
     LOGOUT: '/auth/logout/',
     ME: '/auth/me/',
   },
+
+  INTERESTS : '/interests/',
+
+
   PROFILE: {
     ME: '/profile/me/',
     UPDATE: '/profile/update/',

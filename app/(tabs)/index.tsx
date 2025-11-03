@@ -1,98 +1,170 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { SimpleLineIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Menu, MessageCircle, Search, UserPlus } from 'lucide-react-native'; // ← Changed from lucide-react
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Hardcoded data for the profile
+const profile = {
+  name: 'Elliot Denis',
+  age: 24,
+  bio: 'Award-winning designer raised in Austria, living in New York.',
+  image: 'https://i.pinimg.com/736x/ee/bb/05/eebb055f6982704555b5930e350796a5.jpg',
+};
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome Thierno!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it and use it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const insets = useSafeAreaInsets();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  return (
+    <View style={styles.container}>
+      {/* Background Image */}
+      <Image
+        source={{ uri: profile.image }}
+        style={styles.backgroundImage}
+        contentFit="cover"
+        placeholder={{ uri: 'https://placehold.co/600x800/222/FFF?text=Loading...' }}
+      />
+
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,0.95)']}
+        style={styles.gradient}
+      />
+
+      {/* Top Navigation */}
+      <View style={[styles.topNav, { paddingTop: insets.top + 10 }]}>
+        <Pressable>
+          <Menu color="white" size={28} />
+        </Pressable>
+        <Pressable>
+          <Search color="white" size={28} />
+        </Pressable>
+      </View>
+
+      {/* Side Action Buttons */}
+      <View style={styles.sideButtonsContainer}>
+        <Pressable style={styles.sideButton}>
+          <UserPlus color="white" size={24} />
+        </Pressable>
+        <Pressable style={styles.sideButton}>
+          <MessageCircle color="white" size={24} />
+        </Pressable>
+      </View>
+
+      {/* Bottom Content Area */}
+      <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 10 }]}>
+        {/* Profile Info */}
+        <View style={styles.profileInfoContainer}>
+          <ThemedText style={styles.nameText}>
+            {profile.name}, {profile.age}
+          </ThemedText>
+          <ThemedText style={styles.bioText}>{profile.bio}</ThemedText>
+        </View>
+
+        {/* Social Icons */}
+        <View style={styles.socialIconsContainer}>
+          <Pressable>
+            <SimpleLineIcons name="social-facebook" size={24} color="white" />
+          </Pressable>
+          <Pressable>
+            <SimpleLineIcons name="social-instagram" size={24} color="white" />
+          </Pressable>
+          <Pressable>
+            <SimpleLineIcons name="paper-plane" size={24} color="white" />
+          </Pressable>
+        </View>
+
+        {/* Find Match Button */}
+        <Pressable style={styles.findMatchButton}>
+          <ThemedText style={styles.findMatchButtonText}>Find match</ThemedText>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '60%',
+  },
+  topNav: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  sideButtonsContainer: {
+    position: 'absolute',
+    right: 20,
+    bottom: 200,
+    gap: 16,
+    zIndex: 10,
+  },
+  sideButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
+  bottomContainer: {
+    position: 'absolute',
     bottom: 0,
     left: 0,
-    position: 'absolute',
+    right: 0,
+    paddingHorizontal: 24,
+  },
+  profileInfoContainer: {
+    marginBottom: 10,
+  },
+  nameText: {
+    color: 'white',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginTop: 24,
+  },
+  bioText: {
+    color: 'white',
+    fontSize: 16,
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  socialIconsContainer: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 24,
+  },
+  findMatchButton: {
+    backgroundColor: '#FF005C',
+    paddingVertical: 18,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  findMatchButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });

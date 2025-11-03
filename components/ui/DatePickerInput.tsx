@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   placeholderText: {
-    color: 'white',
+    color: Colors.dark.placeholder,
   },
   errorText: {
     fontSize: 12,

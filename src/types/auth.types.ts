@@ -1,3 +1,5 @@
+import { Profile } from './profile.types';
+
 export interface User {
   id: number;
   uuid: string;
@@ -11,26 +13,6 @@ export interface User {
   profile?: Profile;
 }
 
-export interface Profile {
-  bio: string;
-  birth_date: string | null;
-  age: number | null;
-  gender: string;
-  city: string;
-  country: string;
-  relationship_goal: string;
-  looking_for_gender: string;
-  min_age_preference: number;
-  max_age_preference: number;
-  max_distance_km: number;
-  profile_completion_percentage: number;
-  is_complete: boolean;
-  total_matches: number;
-  total_messages_sent: number;
-  profile_views: number;
-  photos: ProfilePhoto[];
-  interests: Interest[];
-}
 
 export interface ProfilePhoto {
   id: number;

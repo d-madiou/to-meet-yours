@@ -1,10 +1,10 @@
 import { ENDPOINTS } from "@/src/api.config";
 import {
-    LoginRequest,
-    LoginResponse,
-    RegisterRequest,
-    RegisterResponse,
-    User
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  User
 } from "@/src/types/auth.types";
 import { apiService } from "./api.service";
 

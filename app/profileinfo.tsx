@@ -1,6 +1,6 @@
 
-import ProfileInfoScreen from '../screens/ProfileInfo';
+import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 
 export default function ProfileInfoRoute() {
-  return <ProfileInfoScreen />;
+  return <CompleteProfileScreen />;
 }
