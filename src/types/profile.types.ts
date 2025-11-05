@@ -19,6 +19,7 @@ export interface Profile {
   interests: ProfileInterest[];
   created_at: string;
   updated_at: string;
+  is_verified: boolean;
 }
 
 export interface ProfilePhoto {

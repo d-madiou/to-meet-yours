@@ -18,7 +18,6 @@ export default function RootLayout() {
         <Stack.Screen name="splash" options={{ headerShown: false }} />
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="makeprofile" options={{ headerShown: false }} />
         <Stack.Screen name="profileinfo" options={{ headerShown: false }} />
         <Stack.Screen name="manage-interests" options={{ presentation: 'modal', title: 'Manage Interests', headerShown: false }} />

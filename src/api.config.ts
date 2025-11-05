@@ -31,3 +31,5 @@ export const ENDPOINTS = {
     REMOVE_INTEREST: '/profile/remove_interest/',
   },
 };
+
+//http://172.16.121.92:8000/api

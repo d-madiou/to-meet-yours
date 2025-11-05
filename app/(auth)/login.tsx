@@ -1,5 +1,7 @@
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { profileService } from '@/src/services/api/profile.service';
+import { LoginRequest } from '@/src/types/auth.types';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -18,13 +20,15 @@ import {
   View,
 } from "react-native";
 
+
+
 interface LoginScreenProps {}
 
 // The login service 
 import { authService } from "@/src/services/api/auth.service";
 
 const BACKGROUND_IMAGE = require("../../assets/login.png");
-
+ 
 export default function LoginScreen({}: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,17 +60,36 @@ export default function LoginScreen({}: LoginScreenProps) {
   };
 
  const handleLogin = async () => {
-  if (!validateForm()) return;
+  if (!email.trim() || !password.trim()) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
 
   setLoading(true);
+ 
   try {
-    const response = await authService.login({
-      email,
-      password,
-    });
-    router.replace("/makeprofile");
+    const credentials: LoginRequest = {
+      email: email.trim(),
+      password: password,
+    };
+
+    const response = await authService.login(credentials);
+    
+    // Check profile completion 
+    try {
+      const profile = await profileService.getMyProfile();
+      
+      if (profile.profile_completion_percentage < 70) {
+        router.replace('/makeprofile');
+      } else {
+        router.replace('/(tabs)'); // or '/(tabs)' for Expo Router
+      }
+    } catch (profileError) {
+      router.replace('/makeprofile');
+    } 
+
   } catch (error: any) {
-    Alert.alert("Login failed", error.message || "Something went wrong");
+    Alert.alert('Login Failed', error.message);
   } finally {
     setLoading(false);
   }

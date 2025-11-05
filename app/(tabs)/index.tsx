@@ -1,86 +1,110 @@
-import { ThemedText } from '@/components/themed-text';
-import { SimpleLineIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Menu, MessageCircle, Search, UserPlus } from 'lucide-react-native'; // ← Changed from lucide-react
-import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import FeedCard from '@/components/ui/FeedCard';
+import { Colors } from '@/constants/theme';
+import { feedService } from '@/src/services/api/feed.service';
+import { FeedUser } from '@/src/types/feed.types';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 
-// Hardcoded data for the profile
-const profile = {
-  name: 'Elliot Denis',
-  age: 24,
-  bio: 'Award-winning designer raised in Austria, living in New York.',
-  image: 'https://i.pinimg.com/736x/ee/bb/05/eebb055f6982704555b5930e350796a5.jpg',
-};
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
+export default function FeedScreen() {
+  const [users, setUsers] = useState<FeedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    loadFeed();
+  }, []);
+
+  const loadFeed = async () => {
+    try {
+      const response = await feedService.getFeed(20);
+      setUsers(response.results);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadFeed();
+    setRefreshing(false);
+  };
+
+  const handleLike = (user: FeedUser) => {
+    console.log('Like:', user.username);
+    // TODO: Implement like logic later
+    Alert.alert('Coming Soon', 'Like feature will be implemented next!');
+  };
+
+  const handlePass = (user: FeedUser) => {
+    console.log('Pass:', user.username);
+    // TODO: Implement pass logic later
+    Alert.alert('Coming Soon', 'Pass feature will be implemented next!');
+  };
+
+  const handleMessage = (user: FeedUser) => {
+    console.log('Message:', user.username);
+    // TODO: Implement message logic later
+    Alert.alert('Coming Soon', 'Messaging will be implemented next!');
+  };
+
+  const handleProfile = (user: FeedUser) => {
+    console.log('View Profile:', user.username);
+    // TODO: Navigate to profile detail
+    Alert.alert('Coming Soon', 'Profile view will be implemented next!');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Background Image */}
-      <Image
-        source={{ uri: profile.image }}
-        style={styles.backgroundImage}
-        contentFit="cover"
-        placeholder={{ uri: 'https://placehold.co/600x800/222/FFF?text=Loading...' }}
+      <StatusBar style="light" />
+      
+      <FlatList
+        ref={flatListRef}
+        data={users}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <FeedCard
+            user={item}
+            onLike={() => handleLike(item)}
+            onPass={() => handlePass(item)}
+            onMessage={() => handleMessage(item)}
+            onProfile={() => handleProfile(item)}
+          />
+        )}
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+        snapToInterval={SCREEN_HEIGHT}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#fff"
+          />
+        }
       />
-
-      {/* Gradient Overlay */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,0.95)']}
-        style={styles.gradient}
-      />
-
-      {/* Top Navigation */}
-      <View style={[styles.topNav, { paddingTop: insets.top + 10 }]}>
-        <Pressable>
-          <Menu color="white" size={28} />
-        </Pressable>
-        <Pressable>
-          <Search color="white" size={28} />
-        </Pressable>
-      </View>
-
-      {/* Side Action Buttons */}
-      <View style={styles.sideButtonsContainer}>
-        <Pressable style={styles.sideButton}>
-          <UserPlus color="white" size={24} />
-        </Pressable>
-        <Pressable style={styles.sideButton}>
-          <MessageCircle color="white" size={24} />
-        </Pressable>
-      </View>
-
-      {/* Bottom Content Area */}
-      <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 10 }]}>
-        {/* Profile Info */}
-        <View style={styles.profileInfoContainer}>
-          <ThemedText style={styles.nameText}>
-            {profile.name}, {profile.age}
-          </ThemedText>
-          <ThemedText style={styles.bioText}>{profile.bio}</ThemedText>
-        </View>
-
-        {/* Social Icons */}
-        <View style={styles.socialIconsContainer}>
-          <Pressable>
-            <SimpleLineIcons name="social-facebook" size={24} color="white" />
-          </Pressable>
-          <Pressable>
-            <SimpleLineIcons name="social-instagram" size={24} color="white" />
-          </Pressable>
-          <Pressable>
-            <SimpleLineIcons name="paper-plane" size={24} color="white" />
-          </Pressable>
-        </View>
-
-        {/* Find Match Button */}
-        <Pressable style={styles.findMatchButton}>
-          <ThemedText style={styles.findMatchButtonText}>Find match</ThemedText>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -90,81 +114,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '60%',
-  },
-  topNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  sideButtonsContainer: {
-    position: 'absolute',
-    right: 20,
-    bottom: 200,
-    gap: 16,
-    zIndex: 10,
-  },
-  sideButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    alignItems: 'center',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  bottomContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-  },
-  profileInfoContainer: {
-    marginBottom: 10,
-  },
-  nameText: {
-    color: 'white',
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginTop: 24,
-  },
-  bioText: {
-    color: 'white',
-    fontSize: 16,
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  socialIconsContainer: {
-    flexDirection: 'row',
-    gap: 24,
-    marginBottom: 24,
-  },
-  findMatchButton: {
-    backgroundColor: '#FF005C',
-    paddingVertical: 18,
-    borderRadius: 30,
     alignItems: 'center',
-  },
-  findMatchButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    backgroundColor: Colors.dark.background,
   },
 });
