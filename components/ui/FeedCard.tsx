@@ -3,12 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    Dimensions,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { FeedUser } from '../../src/types/feed.types';
 
@@ -20,6 +20,7 @@ interface FeedCardProps {
   onPass?: () => void;
   onMessage?: () => void;
   onProfile?: () => void;
+  isProcessing?: boolean; // ✅ NEW
 }
 
 export default function FeedCard({
@@ -28,6 +29,7 @@ export default function FeedCard({
   onPass,
   onMessage,
   onProfile,
+  isProcessing = false, // ✅ NEW default value
 }: FeedCardProps) {
   return (
     <View style={styles.container}>
@@ -52,29 +54,27 @@ export default function FeedCard({
         {/* User Info */}
         <View style={styles.infoContainer}>
           <View style={styles.nameRow}>
-            {/* Username + Age */}
             <Text style={styles.name}>
-                {user.username}
-                {user.age && <Text style={styles.age}> {user.age}</Text>}
+              {user.username}
+              {user.age && <Text style={styles.age}> {user.age}</Text>}
             </Text>
 
-            {/* Verified Icon */}
             {user.is_verified && (
-                <Ionicons
+              <Ionicons
                 name="checkmark-circle"
                 size={18}
                 color="#4cd964"
                 style={{ marginLeft: 6 }}
-                />
+              />
             )}
-            </View>
-
+          </View>
 
           {user.city && (
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color="#fff" />
               <Text style={styles.location}>
-                {user.city}{user.country && `, ${user.country}`}
+                {user.city}
+                {user.country && `, ${user.country}`}
               </Text>
             </View>
           )}
@@ -88,16 +88,21 @@ export default function FeedCard({
 
           {user.gender && (
             <View style={styles.genderRow}>
-              <Ionicons 
-                name={user.gender === 'Male' ? 'male' : user.gender === 'Female' ? 'female' : 'male-female'} 
-                size={16} 
-                color="#fff" 
+              <Ionicons
+                name={
+                  user.gender === 'Male'
+                    ? 'male'
+                    : user.gender === 'Female'
+                    ? 'female'
+                    : 'male-female'
+                }
+                size={16}
+                color="#fff"
               />
               <Text style={styles.gender}>{user.gender}</Text>
             </View>
           )}
 
-          {/* Interests */}
           {user.interests && user.interests.length > 0 && (
             <View style={styles.interestsContainer}>
               {user.interests.slice(0, 3).map((interest, index) => (
@@ -108,7 +113,6 @@ export default function FeedCard({
             </View>
           )}
 
-          {/* Bio Preview */}
           {user.bio && (
             <Text style={styles.bio} numberOfLines={2}>
               {user.bio}
@@ -117,16 +121,22 @@ export default function FeedCard({
         </View>
       </LinearGradient>
 
-      {/* Action Buttons (Right Side) */}
+      {/* Action Buttons */}
       <View style={styles.actionsContainer}>
         {/* Profile Button */}
-        <TouchableOpacity style={styles.actionButton} onPress={onProfile}>
-          <View style={styles.avatarButton}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onProfile}
+          disabled={isProcessing} // ✅ disable if processing
+        >
+          <View
+            style={[
+              styles.avatarButton,
+              isProcessing && styles.disabledButton, // ✅ visually dim
+            ]}
+          >
             {user.photo_url ? (
-              <Image
-                source={{ uri: user.photo_url }}
-                style={styles.avatar}
-              />
+              <Image source={{ uri: user.photo_url }} style={styles.avatar} />
             ) : (
               <Ionicons name="person" size={24} color="#fff" />
             )}
@@ -134,24 +144,54 @@ export default function FeedCard({
         </TouchableOpacity>
 
         {/* Like Button */}
-        <TouchableOpacity style={styles.actionButton} onPress={onLike}>
-          <View style={[styles.iconButton, styles.likeButton]}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onLike}
+          disabled={isProcessing} // ✅
+        >
+          <View
+            style={[
+              styles.iconButton,
+              styles.likeButton,
+              isProcessing && styles.disabledButton, // ✅
+            ]}
+          >
             <Ionicons name="heart" size={28} color="#fff" />
           </View>
           <Text style={styles.actionLabel}>Like</Text>
         </TouchableOpacity>
 
         {/* Message Button */}
-        <TouchableOpacity style={styles.actionButton} onPress={onMessage}>
-          <View style={[styles.iconButton, styles.messageButton]}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onMessage}
+          disabled={isProcessing}
+        >
+          <View
+            style={[
+              styles.iconButton,
+              styles.messageButton,
+              isProcessing && styles.disabledButton,
+            ]}
+          >
             <Ionicons name="chatbubble" size={24} color="#fff" />
           </View>
           <Text style={styles.actionLabel}>Message</Text>
         </TouchableOpacity>
 
         {/* Pass Button */}
-        <TouchableOpacity style={styles.actionButton} onPress={onPass}>
-          <View style={[styles.iconButton, styles.passButton]}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onPass}
+          disabled={isProcessing}
+        >
+          <View
+            style={[
+              styles.iconButton,
+              styles.passButton,
+              isProcessing && styles.disabledButton,
+            ]}
+          >
             <Ionicons name="close" size={28} color="#000" />
           </View>
           <Text style={styles.actionLabel}>Pass</Text>
@@ -204,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6ff00ff',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: '100%',
+    borderRadius: 100,
     marginLeft: 8,
     color: '#000',
   },
@@ -312,5 +352,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.5, // ✅ visually show disabled
   },
 });

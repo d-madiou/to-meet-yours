@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === 'development';
 // Base API configuration
 export const API_CONFIG = {
   BASE_URL: isDev
-    ? 'http://localhost:8000/api'
+    ? 'http://localhost:8000/api/'
     : 'https://api.yourproductiondomain.com/api',
   TIMEOUT: 5000,
 };
@@ -30,6 +30,13 @@ export const ENDPOINTS = {
     ADD_INTEREST: '/profile/add_interest/',
     REMOVE_INTEREST: '/profile/remove_interest/',
   },
+
+  MATCHING: {
+    SWIPE: '/swipe/',
+    GET_MATCHES: '/matches/',
+    GET_MATCH_COUNT: '/matches/count/',
+    GET_DISCOVERY: '/discovery/swipe/',
+  }
 };
 
 //http://172.16.121.92:8000/api

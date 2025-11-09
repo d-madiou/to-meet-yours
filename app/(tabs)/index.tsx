@@ -1,6 +1,7 @@
 import FeedCard from '@/components/ui/FeedCard';
 import { Colors } from '@/constants/theme';
 import { feedService } from '@/src/services/api/feed.service';
+import { matchingService } from '@/src/services/api/matching.service';
 import { FeedUser } from '@/src/types/feed.types';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
@@ -20,8 +21,13 @@ export default function FeedScreen() {
   const [users, setUsers] = useState<FeedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [swipedUsers, setSwipedUsers] = useState<Set<string>>(new Set()); // ✅ Added state
+  const [currentIndex, setCurrentIndex] = useState(0); // ✅ Added state
   const flatListRef = useRef<FlatList>(null);
 
+  // -------------------------------
+  // FETCH USERS
+  // -------------------------------
   useEffect(() => {
     loadFeed();
   }, []);
@@ -29,9 +35,11 @@ export default function FeedScreen() {
   const loadFeed = async () => {
     try {
       const response = await feedService.getFeed(20);
-      setUsers(response.results);
+      // Ensure users is always an array, even if response.results is undefined
+      setUsers(response.results || []);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+      setUsers([]); // Reset to an empty array on error
     } finally {
       setLoading(false);
     }
@@ -43,30 +51,79 @@ export default function FeedScreen() {
     setRefreshing(false);
   };
 
-  const handleLike = (user: FeedUser) => {
-    console.log('Like:', user.username);
-    // TODO: Implement like logic later
-    Alert.alert('Coming Soon', 'Like feature will be implemented next!');
+  // -------------------------------
+  // HANDLE LIKE
+  // -------------------------------
+  const handleLike = async (user: FeedUser) => {
+    try {
+      // Mark as swiped
+      setSwipedUsers((prev) => new Set([...prev, user.id]));
+
+      // Send swipe action to backend
+      const response = await matchingService.swipe('like', user.id);
+
+      // Handle mutual match
+      if (response.is_mutual_match) {
+        Alert.alert(
+          'It\'s a Match!',
+          `You and ${user.username} liked each other!`,
+          [
+            {
+              text: 'Keep Swiping',
+              style: 'cancel',
+            },
+            {
+              text: 'View Match',
+              onPress: () => {
+                // TODO: Navigate to Matches screen
+                console.log('Navigate to matches');
+              },
+            },
+          ]
+        );
+      }
+
+      // Move to next user
+      setCurrentIndex((prev) => prev + 1);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
-  const handlePass = (user: FeedUser) => {
-    console.log('Pass:', user.username);
-    // TODO: Implement pass logic later
-    Alert.alert('Coming Soon', 'Pass feature will be implemented next!');
+  // -------------------------------
+  // HANDLE PASS
+  // -------------------------------
+  const handlePass = async (user: FeedUser) => {
+    try {
+      // Mark as swiped
+      setSwipedUsers((prev) => new Set([...prev, user.id]));
+
+      // Send pass action
+      await matchingService.swipe('pass', user.id);
+
+      // Move to next user
+      setCurrentIndex((prev) => prev + 1);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
+  // -------------------------------
+  // OTHER PLACEHOLDERS
+  // -------------------------------
   const handleMessage = (user: FeedUser) => {
     console.log('Message:', user.username);
-    // TODO: Implement message logic later
     Alert.alert('Coming Soon', 'Messaging will be implemented next!');
   };
 
   const handleProfile = (user: FeedUser) => {
     console.log('View Profile:', user.username);
-    // TODO: Navigate to profile detail
     Alert.alert('Coming Soon', 'Profile view will be implemented next!');
   };
 
+  // -------------------------------
+  // LOADING STATE
+  // -------------------------------
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -75,13 +132,15 @@ export default function FeedScreen() {
     );
   }
 
+  // -------------------------------
+  // RENDER UI
+  // -------------------------------
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
       <FlatList
         ref={flatListRef}
-        data={users}
+        data={users.filter((u) => !swipedUsers.has(u.id))} // ✅ Skip swiped users
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <FeedCard
@@ -109,6 +168,9 @@ export default function FeedScreen() {
   );
 }
 
+// -------------------------------
+// STYLES
+// -------------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
