@@ -6,22 +6,29 @@ import {
   RegisterResponse,
   User
 } from "@/src/types/auth.types";
+import { AuthStorage } from "@/src/utils/auth.storage";
 import { apiService } from "./api.service";
 
 class AuthService {
   // 🔹 LOGIN
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    try {
-      const response = await apiService.post<LoginResponse>(
-        ENDPOINTS.AUTH.LOGIN,
-        credentials
-      );
-      await apiService.setToken(response.token);
-      return response;
-    } catch (error: any) {
-      throw this.handleError(error);
-    }
+  try {
+    const response = await apiService.post<LoginResponse>(
+      ENDPOINTS.AUTH.LOGIN,
+      credentials
+    );
+    
+    // Store token
+    await apiService.setToken(response.token);
+    
+    // Save user data for offline access
+    await AuthStorage.saveUserData(response.user);
+    
+    return response;
+  } catch (error: any) {
+    throw this.handleError(error);
   }
+}
 
   // 🔹 REGISTER
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
@@ -39,13 +46,30 @@ class AuthService {
 
   // 🔹 LOGOUT
   async logout(): Promise<void> {
-    try {
-      await apiService.post(ENDPOINTS.AUTH.LOGOUT);
-    } catch (error: any) {
-      throw this.handleError(error);
-    }
+  try {
+    await apiService.post(ENDPOINTS.AUTH.LOGOUT);
+  } catch (error) {
+    console.error('Logout error:', error);
+  } finally {
+    // Clear all auth data
+    await AuthStorage.clearAll();
     await apiService.clearToken();
   }
+}
+
+// ADD new method to check if session is valid:
+async checkSession(): Promise<boolean> {
+  try {
+    const isLoggedIn = await AuthStorage.isLoggedIn();
+    if (!isLoggedIn) return false;
+    
+    await this.getCurrentUser();
+    return true;
+  } catch (error) {
+    await AuthStorage.clearAll();
+    return false;
+  }
+}
 
   // 🔹 CURRENT USER
   async getCurrentUser(): Promise<User> {
@@ -66,6 +90,7 @@ class AuthService {
       return false;
     }
   }
+  // Let's get my profile
 
   // 🔹 ERROR HANDLER
   private handleError(error: any): Error {

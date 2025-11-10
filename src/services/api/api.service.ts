@@ -1,6 +1,6 @@
 
 import { API_CONFIG } from "@/src/api.config";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AuthStorage } from "@/src/utils/auth.storage";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 class ApiService {
@@ -15,6 +15,9 @@ class ApiService {
     });
 
     this.setupInterceptors();
+    
+    // Eagerly load the token from storage on initialization
+    this.getToken();
   }
 
   /**
@@ -60,7 +63,7 @@ class ApiService {
   // 🔹 Retrieve stored token (cache + AsyncStorage)
   private async getToken(): Promise<string | null> {
     if (!this.token) {
-      this.token = await AsyncStorage.getItem("authToken");
+      this.token = await AuthStorage.getToken();
     }
     return this.token;
   }
@@ -68,13 +71,13 @@ class ApiService {
   // 🔹 Save token to memory + AsyncStorage
   async setToken(token: string): Promise<void> {
     this.token = token;
-    await AsyncStorage.setItem("authToken", token);
+    await AuthStorage.saveToken(token);
   }
 
   // 🔹 Clear stored token
   async clearToken(): Promise<void> {
     this.token = null;
-    await AsyncStorage.removeItem("authToken");
+    await AuthStorage.removeToken();
   }
 
   // 🔹 Generic request methods (typed)

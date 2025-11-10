@@ -28,6 +28,7 @@ export interface ProfilePhoto {
   image: string;
   is_primary: boolean;
   uploaded_at?: string;
+  
 }
 
 export interface Interest {

@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === 'development';
 // Base API configuration
 export const API_CONFIG = {
   BASE_URL: isDev
-    ? 'http://localhost:8000/api/'
+    ? 'http://172.16.122.99:8000/api/'
     : 'https://api.yourproductiondomain.com/api',
   TIMEOUT: 5000,
 };
@@ -17,6 +17,11 @@ export const ENDPOINTS = {
     LOGIN: '/auth/login/',
     LOGOUT: '/auth/logout/',
     ME: '/auth/me/',
+  },
+
+  USERS: {
+    // Change from '/api/device-tokens/register/'
+    REGISTER_DEVICE: '/device-tokens/register/', // <-- CORRECTED PATH
   },
 
   INTERESTS : '/interests/',

@@ -20,7 +20,7 @@ interface FeedCardProps {
   onPass?: () => void;
   onMessage?: () => void;
   onProfile?: () => void;
-  isProcessing?: boolean; // ✅ NEW
+  isProcessing?: boolean;
 }
 
 export default function FeedCard({
@@ -29,7 +29,7 @@ export default function FeedCard({
   onPass,
   onMessage,
   onProfile,
-  isProcessing = false, // ✅ NEW default value
+  isProcessing = false,
 }: FeedCardProps) {
   return (
     <View style={styles.container}>
