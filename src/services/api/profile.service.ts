@@ -104,6 +104,16 @@ class ProfileService {
     }
   }
 
+  // Get user public profile
+  async getUserProfile(userId: string): Promise<any> {
+  try {
+    const response = await apiService.get(`/users/${userId}/detail/`);
+    return response;
+  } catch (error: any) {
+    throw this.handleError(error);
+  }
+}
+
   /**
    * Add interest to profile
    */

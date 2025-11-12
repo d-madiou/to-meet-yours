@@ -1,58 +1,73 @@
-
-import { API_CONFIG } from "@/src/api.config";
-import { AuthStorage } from "@/src/utils/auth.storage";
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import { API_CONFIG } from '@/src/api.config';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AuthStorage } from '../../utils/auth.storage';
 
 class ApiService {
   private axiosInstance: AxiosInstance;
   private token: string | null = null;
+  private isRefreshing = false; // Prevent multiple logout attempts
 
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: API_CONFIG.BASE_URL,
       timeout: API_CONFIG.TIMEOUT,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     this.setupInterceptors();
-    
-    // Eagerly load the token from storage on initialization
-    this.getToken();
   }
 
-  /**
-   * Setup request & response interceptors
-   */
   private setupInterceptors() {
-    // Request Interceptor
+    // Request interceptor
     this.axiosInstance.interceptors.request.use(
-      async (config: InternalAxiosRequestConfig) => {
+      async (config) => {
         const token = await this.getToken();
         if (token) {
-          config.headers.set('Authorization', `Token ${token}`);
+          config.headers.Authorization = `Token ${token}`;
         }
-
-        console.log(`🚀 [API Request] ${config.method?.toUpperCase()} ${config.url}`);
+        
+        console.log(`🚀 [API Request]: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        console.error("❌ Request Error:", error);
+        console.error('❌ [Request Error]:', error);
         return Promise.reject(error);
       }
     );
 
-    // Response Interceptor
+    // Response interceptor
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        console.log(`✅ [API Response] ${response.config.url}`, response.status);
+        console.log(`✅ [API Response]: ${response.config.url}`, response.status);
         return response;
       },
       async (error) => {
-        console.error("❌ [API Error]:", error.response?.data || error.message);
+        // Only log errors that aren't expected (like during logout)
+        // Suppress 401 errors during logout
+        const isLogoutError = error.config?.url === '/auth/logout' && error.response?.status === 401;
 
-        // Automatically clear token on 401 Unauthorized
+        if ((error.response?.status !== 401 || !this.isRefreshing) && !isLogoutError) {
+          console.error("❌ [API Error]:", error.response?.data || error.message);
+        }
+
+        // Handle 401 Unauthorized
         if (error.response?.status === 401) {
-          await this.clearToken();
+          // Prevent multiple simultaneous logout attempts
+          if (!this.isRefreshing) {
+            this.isRefreshing = true;
+            console.log('🔐 Token invalid, clearing auth data...');
+            
+            try {
+              await this.clearToken();
+              await AuthStorage.clearAll();
+            } catch (clearError) {
+              console.error('Error clearing auth:', clearError);
+            } finally {
+              this.isRefreshing = false;
+            }
+          }
         }
 
         return Promise.reject(error);
@@ -60,27 +75,23 @@ class ApiService {
     );
   }
 
-  // 🔹 Retrieve stored token (cache + AsyncStorage)
-  private async getToken(): Promise<string | null> {
+  async getToken(): Promise<string | null> {
     if (!this.token) {
       this.token = await AuthStorage.getToken();
     }
     return this.token;
   }
 
-  // 🔹 Save token to memory + AsyncStorage
   async setToken(token: string): Promise<void> {
     this.token = token;
     await AuthStorage.saveToken(token);
   }
 
-  // 🔹 Clear stored token
   async clearToken(): Promise<void> {
     this.token = null;
     await AuthStorage.removeToken();
   }
 
-  // 🔹 Generic request methods (typed)
   async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.axiosInstance.get(url, config);
     return response.data;
@@ -106,14 +117,14 @@ class ApiService {
     return response.data;
   }
 
-  // 🔹 File upload (multipart/form-data)
   async uploadFile<T = any>(url: string, formData: FormData): Promise<T> {
     const response: AxiosResponse<T> = await this.axiosInstance.post(url, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   }
 }
 
-// Export a single instance (singleton)
 export const apiService = new ApiService();

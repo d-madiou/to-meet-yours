@@ -47,13 +47,16 @@ class AuthService {
   // 🔹 LOGOUT
   async logout(): Promise<void> {
   try {
-    await apiService.post(ENDPOINTS.AUTH.LOGOUT);
-  } catch (error) {
-    console.error('Logout error:', error);
+    // Try to call logout endpoint, but don't fail if it errors
+    await apiService.post(ENDPOINTS.AUTH.LOGOUT).catch(() => {
+      // Ignore errors during logout API call
+      console.log('Logout API call failed, but continuing with local cleanup');
+    });
   } finally {
-    // Clear all auth data
+    // Always clear local data regardless of API call result
     await AuthStorage.clearAll();
     await apiService.clearToken();
+    console.log('✅ Logout complete - all auth data cleared');
   }
 }
 

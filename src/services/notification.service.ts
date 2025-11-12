@@ -3,22 +3,38 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-// Assuming you import ENDPOINTS from 'src/config/api.config.ts' in a real setup
-// For simplicity in this standalone file, I'll use the hardcoded corrected path
-// import { ENDPOINTS } from '@/src/config/api.config'; 
+
+// A simple logger utility for consistent logging
+const Logger = {
+  log: (message: string, ...args: unknown[]) => console.log(`[NotificationService] ${message}`, ...args),
+  warn: (message: string, ...args: unknown[]) => console.warn(`[NotificationService] ⚠️ ${message}`, ...args),
+  error: (message: string, ...args: unknown[]) => console.error(`[NotificationService] ❌ ${message}`, ...args),
+};
+
+// Using a mock for demonstration. In a real app, this would be in a separate config file.
+const ENDPOINTS = {
+  USERS: {
+    REGISTER_DEVICE_TOKEN: '/users/device-tokens/register/',
+  },
+};
 
 // Configure how notifications should be handled when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    shouldPlaySound: false,
+    shouldSetBadge: false,
     shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    
   }),
 });
 
-interface NotificationData {
-  type: 'like' | 'match' | 'message';
+export enum NotificationType {
+  Like = 'like',
+  Match = 'match',
+  Message = 'message',
+}
+
+export interface NotificationData {
+  type: NotificationType;
   userId?: string;
   username?: string;
   matchId?: string;
@@ -38,13 +54,13 @@ class NotificationService {
       
       if (token) {
         this.expoPushToken = token;
-        console.log('✅ Push token obtained:', token);
+        Logger.log('Push token obtained:', token);
         
         // Send token to backend
         await this.sendTokenToBackend(token);
       }
     } catch (error) {
-      console.error('Failed to initialize notifications:', error);
+      Logger.error('Failed to initialize notifications:', error);
     }
   }
 
@@ -53,7 +69,7 @@ class NotificationService {
    */
   async registerForPushNotifications(): Promise<string | null> {
     if (!Device.isDevice) {
-      console.log('⚠️ Push notifications only work on physical devices');
+      Logger.warn('Push notifications only work on physical devices. Skipping registration.');
       return null;
     }
 
@@ -69,7 +85,7 @@ class NotificationService {
       }
 
       if (finalStatus !== 'granted') {
-        console.log('❌ Permission not granted for push notifications');
+        Logger.warn('Permission not granted for push notifications.');
         return null;
       }
 
@@ -78,7 +94,7 @@ class NotificationService {
                         Constants.easConfig?.projectId;
 
       if (!projectId) {
-        console.error('❌ Project ID not found. Run: eas build:configure');
+        Logger.error('Project ID not found in app config. Run `eas build:configure` to set it.');
         return null;
       }
 
@@ -86,10 +102,10 @@ class NotificationService {
         projectId,
       });
 
-      console.log('📱 Expo Push Token:', token.data);
+      Logger.log('Expo Push Token obtained:', token.data);
       return token.data;
     } catch (error) {
-      console.error('Error getting push token:', error);
+      Logger.error('Failed to get push token:', error);
       return null;
     }
   }
@@ -99,15 +115,14 @@ class NotificationService {
    */
   async sendTokenToBackend(token: string): Promise<void> {
     try {
-      // 🚀 FINAL FIX: Corrected path to match backend router: 'users/device-tokens/register/'
-      await apiService.post('/users/device-tokens/register/', { 
+      await apiService.post(ENDPOINTS.USERS.REGISTER_DEVICE_TOKEN, { 
         token,
         platform: Platform.OS,
-        device_type: Device.deviceName || 'Unknown',
+        deviceName: Device.deviceName || 'Unknown',
       });
-      console.log('✅ Token sent to backend');
+      Logger.log('Token sent to backend successfully.');
     } catch (error) {
-      console.error('Failed to send token to backend:', error);
+      Logger.error('Failed to send token to backend:', error);
     }
   }
 
@@ -121,7 +136,7 @@ class NotificationService {
     // Listener for when notification is received while app is in foreground
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
-        console.log('📬 Notification received:', notification);
+        Logger.log('Notification received:', notification);
         onNotificationReceived?.(notification);
       }
     );
@@ -129,7 +144,7 @@ class NotificationService {
     // Listener for when user taps on notification
     const responseListener = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        console.log('👆 Notification tapped:', response);
+        Logger.log('Notification tapped:', response);
         onNotificationTapped?.(response);
       }
     );
@@ -154,7 +169,7 @@ class NotificationService {
         title,
         body,
         data,
-        sound: true,
+        sound: 'default',
       },
       trigger: null, // Show immediately
     });

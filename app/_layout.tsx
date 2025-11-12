@@ -1,122 +1,111 @@
-import { Colors } from '@/constants/theme';
-import { authService } from '@/src/services/api/auth.service';
-import { profileService } from '@/src/services/api/profile.service';
-import { notificationService } from '@/src/services/notification.service'; // ✅ Added for push notifications
-import { Stack, useRouter, useSegments } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { AuthProvider, useAuth } from "@/app/(tabs)/AuthContext"; // Import AuthProvider and useAuth
+import { Colors } from "@/constants/theme";
+import { notificationService } from "@/src/services/notification.service";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 
-// Keep splash screen visible while checking session
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
-
   const router = useRouter();
   const segments = useSegments();
 
+  return (
+    <AuthProvider>
+      <RootLayoutContent />
+    </AuthProvider>
+  );
+}
+
+function RootLayoutContent() {
+  const { isAuthenticated, isProfileComplete, isLoadingAuth } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  /**
+   * 🔔 Initialize notifications after authentication
+   */
   useEffect(() => {
-    checkAuthSession();
-  }, []);
+    if (!isAuthenticated || isLoadingAuth) return;
 
-  const checkAuthSession = async () => {
-    try {
-      console.log('🔍 Checking authentication session...');
+    const initNotifications = async () => {
+      try {
+        await notificationService.initialize();
 
-      // Check if user has valid session
-      const hasValidSession = await authService.checkSession();
+        const cleanup = notificationService.setupListeners(
+          (notification) => {
+            console.log("📬 Notification received:", notification);
+          },
+          (response) => {
+            const data = response.notification.request.content.data as any;
+            if (data.type === "like" || data.type === "match") {
+              router.push("/(tabs)/matches" as any);
+            }
+          }
+        );
 
-      if (hasValidSession) {
-        console.log('✅ Valid session found');
-        setIsAuthenticated(true);
-
-        // Check profile completion
-        try {
-          const profile = await profileService.getMyProfile();
-          const isComplete = profile.profile_completion_percentage >= 70;
-          setIsProfileComplete(isComplete);
-          console.log(`📊 Profile completion: ${profile.profile_completion_percentage}%`);
-        } catch (error) {
-          console.log('⚠️ Could not load profile');
-          setIsProfileComplete(false);
-        }
-      } else {
-        console.log('❌ No valid session found');
-        setIsAuthenticated(false);
+        return cleanup;
+      } catch (error) {
+        console.error("❌ Notification init failed:", error);
       }
-    } catch (error) {
-      console.error('Session check error:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-      // Hide splash screen after checking
-      await SplashScreen.hideAsync();
-    }
-  };
+    };
 
-  // ✅ ADD after session check (initialize notifications when user is authenticated)
-  useEffect(() => {
-    if (isAuthenticated) {
-      initializeNotifications();
-    }
+    const cleanupPromise = initNotifications();
+    return () => {
+      cleanupPromise?.then((cleanup) => cleanup?.());
+    };
   }, [isAuthenticated]);
 
-  const initializeNotifications = async () => {
-    try {
-      await notificationService.initialize();
-
-      const cleanup = notificationService.setupListeners(
-        (notification) => {
-          console.log('📬 Notification received:', notification);
-        },
-        (response) => {
-          const data = response.notification.request.content.data as any;
-          if (data.type === 'like' || data.type === 'match') {
-            router.push('/(tabs)/matches' as any);
-          }
-        }
-      );
-
-      return cleanup;
-    } catch (error) {
-      console.error('Notification init failed:', error);
-    }
-  };
-
+  /**
+   * 🧭 Handle navigation logic based on auth/profile state
+   */
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoadingAuth) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    const currentSegment = segments[0];
+    const inAuthGroup = currentSegment === "(auth)";
+    const inTabsGroup = currentSegment === "(tabs)";
 
-    console.log('🧭 Current segment:', segments[0]);
-    console.log('🔐 Auth status:', { isAuthenticated, isProfileComplete });
+    console.log("🧭 Navigation Check:", {
+      segment: currentSegment, // (auth) or (tabs)
+      isAuthenticated: isAuthenticated,
+      isProfileComplete: isProfileComplete,
+    });
 
-    if (!isAuthenticated && !inAuthGroup) {
-      // Not authenticated, redirect to login
-      console.log('➡️ Redirecting to login');
-      router.replace('/(auth)/login' as any);
-    } else if (isAuthenticated && !isProfileComplete && !inAuthGroup) {
-      // Authenticated but profile incomplete
-      console.log('➡️ Redirecting to complete profile');
-      router.replace('/(auth)/complete-profile' as any);
-    } else if (isAuthenticated && isProfileComplete && !inTabsGroup) {
-      // Authenticated and profile complete
-      console.log('➡️ Redirecting to main app');
-      router.replace('/(tabs)' as any);
+    if (!isAuthenticated) {
+      if (!inAuthGroup) {
+        console.log("➡️ Redirecting to login (unauthenticated)");
+        router.replace("/(auth)/login" as any);
+      }
+      return;
     }
-  }, [isLoading, isAuthenticated, isProfileComplete, segments]);
 
-  if (isLoading) {
+    if (!isProfileComplete) {
+      if (currentSegment !== "(auth)") {
+        console.log("➡️ Redirecting to complete profile");
+        router.replace("/(auth)/makeprofile" as any);
+      }
+      return;
+    }
+
+    if (!inTabsGroup) {
+      console.log("➡️ Redirecting to main app");
+      router.replace("/(tabs)" as any);
+    }
+  }, [isLoadingAuth, isAuthenticated, isProfileComplete, segments, router]);
+
+  /**
+   * 💫 Loading screen while checking auth session
+   */
+  if (isLoadingAuth) {
     return (
       <View
         style={{
           flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
+          justifyContent: "center",
+          alignItems: "center",
           backgroundColor: Colors.dark.background,
         }}
       >
@@ -125,6 +114,9 @@ export default function RootLayout() {
     );
   }
 
+  /**
+   * 🧩 App navigation stack
+   */
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />

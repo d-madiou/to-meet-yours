@@ -5,6 +5,7 @@ import React from 'react';
 import {
   Dimensions,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -223,8 +224,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%',
+    height: '45%',
     justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
   },
   infoContainer: {
     padding: 20,
@@ -354,6 +356,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   disabledButton: {
-    opacity: 0.5, // ✅ visually show disabled
+    opacity: 0.5,
   },
 });

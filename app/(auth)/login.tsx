@@ -1,7 +1,7 @@
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { profileService } from '@/src/services/api/profile.service';
-import { LoginRequest } from '@/src/types/auth.types';
+import { profileService } from "@/src/services/api/profile.service";
+import { LoginRequest } from "@/src/types/auth.types";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -20,21 +20,23 @@ import {
   View,
 } from "react-native";
 
-
-
-interface LoginScreenProps {}
-
-// The login service 
+// 🔐 Import Auth service and storage
 import { authService } from "@/src/services/api/auth.service";
+import { AuthStorage } from "@/src/utils/auth.storage";
+import { useNavigation } from 'expo-router';
 
 const BACKGROUND_IMAGE = require("../../assets/login.png");
- 
-export default function LoginScreen({}: LoginScreenProps) {
+
+export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ email: "", password: "" });
+  const navigation = useNavigation();
 
+  // ===============================
+  // Validate form inputs
+  // ===============================
   const validateForm = () => {
     let valid = true;
     const newErrors = { email: "", password: "" };
@@ -59,55 +61,86 @@ export default function LoginScreen({}: LoginScreenProps) {
     return valid;
   };
 
- const handleLogin = async () => {
-  if (!email.trim() || !password.trim()) {
-    Alert.alert('Error', 'Please fill in all fields');
-    return;
-  }
+  // ===============================
+  // Handle Login
+  // ===============================
+  const handleLogin = async () => {
+    if (!validateForm()) return;
 
-  setLoading(true);
- 
-  try {
-    const credentials: LoginRequest = {
-      email: email.trim(),
-      password: password,
-    };
+    setLoading(true);
 
-    const response = await authService.login(credentials);
-    
-    // Check profile completion 
     try {
+
+      const credentials: LoginRequest = {
+        email: email.trim(),
+        password: password,
+      };
+
+      console.log("🔐 Attempting login...");
+
+      // Step 1: Login
+      const response = await authService.login(credentials);
+      console.log("✅ Login successful");
+
+
+      // Step 2: Ensure token is stored
+      const savedToken = await AuthStorage.getToken();
+      console.log("🔒 Token confirmed in storage:", savedToken ? "✅" : "❌");
+
+      // Step 3: Fetch user profile
+      console.log("📊 Checking profile completion...");
       const profile = await profileService.getMyProfile();
-      
-      if (profile.profile_completion_percentage < 70) {
-        router.replace('/makeprofile');
-      } else {
-        router.replace('/(tabs)'); // or '/(tabs)' for Expo Router
+      console.log(`Profile completion: ${profile.profile_completion_percentage}%`);
+
+      // Step 4: Save user data
+      await AuthStorage.saveUserData(profile);
+      console.log("✅ User data saved");
+
+      // Step 5: Verify token again before navigating
+      const tokenCheck = await AuthStorage.getToken();
+      if (!tokenCheck) {
+        console.warn("⚠️ Token not yet ready, waiting 300ms...");
+        await new Promise((res) => setTimeout(res, 300));
       }
-    } catch (profileError) {
-      router.replace('/makeprofile');
-    } 
 
-  } catch (error: any) {
-    Alert.alert('Login Failed', error.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      // Step 6: Navigate
+      const finalToken = await AuthStorage.getToken();
+      console.log("🔎 Final token before navigation:", !!finalToken);
 
+       if (finalToken) {
+        if (profile.profile_completion_percentage < 70) {
+          console.log("➡️ Redirecting to complete profile");
+          router.replace("/(auth)/makeprofile" as any);
+        } else {
+          console.log("➡️ Redirecting to main app");
+          router.replace("/(tabs)" as any);
+         }
+      } else {
+        Alert.alert("Error", "Authentication failed, please try again.");
+      }
+    } catch (error: any) {
+      console.error("❌ Login failed:", error);
+      Alert.alert("Login Failed", error.message || "Invalid credentials");
+    } finally {
 
+      setLoading(false);
+    }
+  };
+
+  // ===============================
+  // Forgot Password
+  // ===============================
   const handleForgotPassword = () => {
     router.push("/(auth)/login");
   };
 
+  // ===============================
+  // UI
+  // ===============================
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <ImageBackground
-        source={BACKGROUND_IMAGE}
-        style={styles.background}
-        resizeMode="cover"
-      >
+      <ImageBackground source={BACKGROUND_IMAGE} style={styles.background} resizeMode="cover">
         <LinearGradient
           colors={[
             "rgba(22, 22, 22, 0.3)",
@@ -128,7 +161,7 @@ export default function LoginScreen({}: LoginScreenProps) {
               {/* Back Button */}
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => router.replace('/firstPage')}
+                onPress={() => router.replace("/firstPage")}
                 activeOpacity={0.7}
               >
                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -146,9 +179,7 @@ export default function LoginScreen({}: LoginScreenProps) {
               {/* Header */}
               <View style={styles.header}>
                 <Text style={styles.title}>Welcome back</Text>
-                <Text style={styles.subtitle}>
-                  Login to your account to continue
-                </Text>
+                <Text style={styles.subtitle}>Login to your account to continue</Text>
               </View>
 
               {/* Form */}
@@ -192,12 +223,10 @@ export default function LoginScreen({}: LoginScreenProps) {
                 onPress={handleForgotPassword}
                 style={styles.forgotPasswordContainer}
               >
-                <Text style={styles.forgotPasswordText}>
-                  Forgot your password?
-                </Text>
+                <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
               </TouchableOpacity>
 
-              {/* Sign Up Link */}
+              {/* Sign Up */}
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>Don't have an account? </Text>
                 <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
@@ -213,18 +242,10 @@ export default function LoginScreen({}: LoginScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  background: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  background: { flex: 1 },
+  gradient: { flex: 1 },
+  keyboardView: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 30,
@@ -244,34 +265,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 30,
   },
-  logo: {
-    width: 100,
-    height: 100,
-  },
-  header: {
-    marginBottom: 40,
-  },
+  logo: { width: 100, height: 100 },
+  header: { marginBottom: 40 },
   title: {
     fontSize: 36,
     fontWeight: "bold",
     color: "#FFFFFF",
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.7)",
-    lineHeight: 22,
-  },
-  form: {
-    marginBottom: 20,
-  },
-  loginButton: {
-    marginTop: 10,
-  },
-  forgotPasswordContainer: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
+  subtitle: { fontSize: 16, color: "rgba(255, 255, 255, 0.7)", lineHeight: 22 },
+  form: { marginBottom: 20 },
+  loginButton: { marginTop: 10 },
+  forgotPasswordContainer: { alignItems: "center", marginBottom: 30 },
   forgotPasswordText: {
     color: "rgba(255, 255, 255, 0.8)",
     fontSize: 14,
@@ -282,13 +287,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  signupText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-  },
-  signupLink: {
-    color: "#FF1654",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  signupText: { color: "rgba(255, 255, 255, 0.7)", fontSize: 14 },
+  signupLink: { color: "#FF1654", fontSize: 14, fontWeight: "600" },
 });

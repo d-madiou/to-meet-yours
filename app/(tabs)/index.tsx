@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { feedService } from '@/src/services/api/feed.service';
 import { matchingService } from '@/src/services/api/matching.service';
 import { FeedUser } from '@/src/types/feed.types';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -10,24 +11,23 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 60;
 
 export default function FeedScreen() {
   const [users, setUsers] = useState<FeedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [swipedUsers, setSwipedUsers] = useState<Set<string>>(new Set()); // ✅ Added state
-  const [currentIndex, setCurrentIndex] = useState(0); // ✅ Added state
+  const [swipedUsers, setSwipedUsers] = useState<Set<string>>(new Set());
+  const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // -------------------------------
-  // FETCH USERS
-  // -------------------------------
   useEffect(() => {
     loadFeed();
   }, []);
@@ -35,11 +35,13 @@ export default function FeedScreen() {
   const loadFeed = async () => {
     try {
       const response = await feedService.getFeed(20);
-      // Ensure users is always an array, even if response.results is undefined
       setUsers(response.results || []);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
-      setUsers([]); // Reset to an empty array on error
+      // Only show error if not a 401 (which means not authenticated)
+      if (error.response?.status !== 401) {
+        Alert.alert('Error', error.message);
+      }
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -51,21 +53,15 @@ export default function FeedScreen() {
     setRefreshing(false);
   };
 
-  // -------------------------------
-  // HANDLE LIKE
-  // -------------------------------
   const handleLike = async (user: FeedUser) => {
     try {
-      // Mark as swiped
       setSwipedUsers((prev) => new Set([...prev, user.id]));
 
-      // Send swipe action to backend
       const response = await matchingService.swipe('like', user.id);
 
-      // Handle mutual match
       if (response.is_mutual_match) {
         Alert.alert(
-          'It\'s a Match!',
+          "It's a Match!",
           `You and ${user.username} liked each other!`,
           [
             {
@@ -75,7 +71,7 @@ export default function FeedScreen() {
             {
               text: 'View Match',
               onPress: () => {
-                // TODO: Navigate to Matches screen
+                // Navigate to matches tab
                 console.log('Navigate to matches');
               },
             },
@@ -83,47 +79,47 @@ export default function FeedScreen() {
         );
       }
 
-      // Move to next user
       setCurrentIndex((prev) => prev + 1);
     } catch (error: any) {
+      // Revert swipe on error
+      setSwipedUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(user.id);
+        return newSet;
+      });
       Alert.alert('Error', error.message);
     }
   };
 
-  // -------------------------------
-  // HANDLE PASS
-  // -------------------------------
   const handlePass = async (user: FeedUser) => {
     try {
-      // Mark as swiped
       setSwipedUsers((prev) => new Set([...prev, user.id]));
-
-      // Send pass action
       await matchingService.swipe('pass', user.id);
-
-      // Move to next user
       setCurrentIndex((prev) => prev + 1);
     } catch (error: any) {
+      setSwipedUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(user.id);
+        return newSet;
+      });
       Alert.alert('Error', error.message);
     }
   };
 
-  // -------------------------------
-  // OTHER PLACEHOLDERS
-  // -------------------------------
   const handleMessage = (user: FeedUser) => {
     console.log('Message:', user.username);
     Alert.alert('Coming Soon', 'Messaging will be implemented next!');
   };
 
-  const handleProfile = (user: FeedUser) => {
-    console.log('View Profile:', user.username);
-    Alert.alert('Coming Soon', 'Profile view will be implemented next!');
-  };
+  //Let's add the profile routing here
 
-  // -------------------------------
-  // LOADING STATE
-  // -------------------------------
+  const handleProfile = (user: FeedUser) => {
+  console.log('View other user profile:', user.username);
+  // Navigate to user profile detail with user ID
+  router.push(`/userprofile/${user.id}`);
+  };
+  
+  
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -132,15 +128,12 @@ export default function FeedScreen() {
     );
   }
 
-  // -------------------------------
-  // RENDER UI
-  // -------------------------------
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <FlatList
         ref={flatListRef}
-        data={users.filter((u) => !swipedUsers.has(u.id))} // ✅ Skip swiped users
+        data={users.filter((u) => !swipedUsers.has(u.id))}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <FeedCard
@@ -156,6 +149,11 @@ export default function FeedScreen() {
         snapToInterval={SCREEN_HEIGHT}
         snapToAlignment="start"
         decelerationRate="fast"
+        // Add bottom padding for tab bar
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          paddingBottom: TAB_BAR_HEIGHT, // Space for tab bar
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -168,9 +166,6 @@ export default function FeedScreen() {
   );
 }
 
-// -------------------------------
-// STYLES
-// -------------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,

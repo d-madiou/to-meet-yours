@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === 'development';
 // Base API configuration
 export const API_CONFIG = {
   BASE_URL: isDev
-    ? 'http://172.16.122.99:8000/api/'
+    ? 'http://localhost:8000/api/'
     : 'https://api.yourproductiondomain.com/api',
   TIMEOUT: 5000,
 };

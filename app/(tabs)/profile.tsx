@@ -54,26 +54,31 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await authService.logout();
-              router.replace('/(auth)/login' as any);
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to logout');
-            }
-          },
+  Alert.alert(
+    'Logout',
+    'Are you sure you want to logout?',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Clear auth data
+            await authService.logout();
+            
+            // Navigate to login (will trigger re-render of root layout)
+            router.replace('/(auth)/login' as any);
+          } catch (error: any) {
+            console.error('Logout error:', error);
+            // Even if logout fails, navigate to login
+            router.replace('/(auth)/login' as any);
+          }
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
 
   if (loading) {
     return (
