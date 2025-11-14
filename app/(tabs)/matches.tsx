@@ -6,15 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 type TabType = 'received' | 'sent' | 'mutual';
@@ -100,6 +100,37 @@ export default function MatchesScreen() {
       ]
     );
   };
+
+  const handleMatchPress = (match: Match) => {
+  // Log to debug
+  console.log('Match user:', match.matched_user);
+  
+  Alert.alert(
+    match.matched_user.username,
+    `Match Score: ${match.match_score}%`,
+    [
+      {
+        text: 'Send Message',
+        onPress: () => {
+          router.push({
+            pathname: '/chat/new',
+            params: {
+              userUuid: match.matched_user.uuid || match.matched_user.id, // Try both
+              username: match.matched_user.username,
+            },
+          });
+        },
+      },
+      {
+        text: 'View Profile',
+        onPress: () => {
+          router.push(`/userprofile/${match.matched_user.id}`);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]
+  );
+};
 
   const getStatusColor = (status: string) => {
     switch (status) {

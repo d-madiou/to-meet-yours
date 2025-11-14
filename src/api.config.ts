@@ -41,7 +41,23 @@ export const ENDPOINTS = {
     GET_MATCHES: '/matches/',
     GET_MATCH_COUNT: '/matches/count/',
     GET_DISCOVERY: '/discovery/swipe/',
-  }
+  },
+
+  MESSAGING: {
+    LIST_CONVERSATIONS: 'conversations/',
+    CONVERSATION_MESSAGES: (uuid: string) => `conversations/${uuid}/messages/`,
+    MARK_READ: (uuid: string) => `conversations/${uuid}/mark_read/`,
+    UNREAD_COUNT: 'conversations/unread_count/',
+    SEND_MESSAGE: 'messages/',
+    CHECK_COST: 'messages/check_cost/',
+  },
+  
+  WALLET: {
+    BALANCE: 'wallet/',
+    TRANSACTIONS: 'wallet/transactions/',
+    PURCHASE: 'wallet/purchase/',
+  },
+
 };
 
 //http://172.16.121.92:8000/api
