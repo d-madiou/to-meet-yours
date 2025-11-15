@@ -3,8 +3,8 @@ import { Colors } from '@/constants/theme';
 import { matchingService } from '@/src/services/api/matching.service';
 import { Match, ReceivedLike, SentLike } from '@/src/types/matching.types';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,9 +32,13 @@ export default function MatchesScreen() {
   const [showMatchPopup, setShowMatchPopup] = useState(false);
   const [matchedUser, setMatchedUser] = useState<any>(null);
 
-  useEffect(() => {
-    loadAllLikes();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (receivedLikes.length === 0 && sentLikes.length === 0 && mutualMatches.length === 0) {
+        loadAllLikes();
+      }
+    }, [receivedLikes, sentLikes, mutualMatches])
+  );
 
   const loadAllLikes = async () => {
     try {
@@ -259,22 +263,8 @@ export default function MatchesScreen() {
   // Render mutual match card
   const renderMutualMatch = ({ item }: { item: Match }) => (
     <TouchableOpacity
-      style={styles.matchCard}
-      onPress={() => {
-        Alert.alert(
-          item.matched_user.username,
-          `Match Score: ${item.match_score}%`,
-          [
-            {
-              text: 'Send Message',
-              onPress: () => {
-                Alert.alert('Coming Soon', 'Messaging feature');
-              },
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-      }}
+      style={styles.matchCard} // This was the bug
+      onPress={() => handleMatchPress(item)}
     >
       <View style={styles.photoContainer}>
         {item.matched_user.photo_url ? (

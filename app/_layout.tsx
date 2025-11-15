@@ -6,12 +6,10 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const router = useRouter();
-  const segments = useSegments();
-
   return (
     <AuthProvider>
       <RootLayoutContent />
@@ -90,8 +88,9 @@ function RootLayoutContent() {
       return;
     }
 
-    if (!inTabsGroup) {
-      console.log("➡️ Redirecting to main app");
+    // If authenticated and profile is complete, but user is in auth group, redirect to tabs.
+    if (inAuthGroup) {
+      console.log("➡️ Redirecting to main app from auth flow");
       router.replace("/(tabs)" as any);
     }
   }, [isLoadingAuth, isAuthenticated, isProfileComplete, segments, router]);
@@ -118,9 +117,32 @@ function RootLayoutContent() {
    * 🧩 App navigation stack
    */
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen 
+          name="chat/[id]" 
+          options={{ 
+            presentation: 'card',
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="chat/compose" 
+          options={{ 
+            presentation: 'card',
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="chat/new" 
+          options={{ 
+            presentation: 'card',
+            headerShown: false,
+          }} 
+        />
+      </Stack>
+    </AuthProvider>
   );
 }

@@ -2,8 +2,8 @@ import { Colors } from '@/constants/theme';
 import { messagingService } from '@/src/services/api/messaging.service';
 import { Conversation } from '@/src/types/messaging.types';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,10 +21,12 @@ export default function MessagesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    loadConversations();
-    loadUnreadCount();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadConversations();
+      loadUnreadCount();
+    }, [])
+  );
 
   const loadConversations = async () => {
     try {
@@ -50,16 +52,8 @@ export default function MessagesScreen() {
   };
 
   const handleConversationPress = (conversation: Conversation) => {
-    router.push({
-      pathname: '/chat/[id]',
-      params: {
-        id: conversation.uuid,
-        username: conversation.other_user.username,
-        userUuid: conversation.other_user.uuid,
-      },
-    });
-  };
-
+  router.push(`/chat/${conversation.uuid}`);
+};
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();

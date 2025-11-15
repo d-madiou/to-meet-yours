@@ -1,11 +1,10 @@
 export interface Conversation {
-    uuid: string;
+  id?: string;           // ADD this - some backends return 'id'
+  uuid: string;          // Keep this
   other_user: {
-    id: string;
-    uuid: string;
+    id?: string;         // ADD this
+    uuid: string;        // Keep this
     username: string;
-    age: number | null;
-    city: string;
     photo_url: string | null;
   };
   latest_message: {

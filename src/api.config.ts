@@ -44,7 +44,7 @@ export const ENDPOINTS = {
   },
 
   MESSAGING: {
-    LIST_CONVERSATIONS: 'conversations/',
+    LIST_CONVERSATIONS: 'conversations/',           // No leading slash
     CONVERSATION_MESSAGES: (uuid: string) => `conversations/${uuid}/messages/`,
     MARK_READ: (uuid: string) => `conversations/${uuid}/mark_read/`,
     UNREAD_COUNT: 'conversations/unread_count/',

@@ -6,24 +6,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function ChatScreen() {
   const params = useLocalSearchParams();
   const conversationId = params.id as string;
-  const otherUsername = params.username as string;
-  const otherUserUuid = params.userUuid as string;
+  const [otherUsername, setOtherUsername] = useState(params.username as string);
+  const [otherUserUuid, setOtherUserUuid] = useState(params.userUuid as string);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,50 +35,53 @@ export default function ChatScreen() {
   
   const flatListRef = useRef<FlatList>(null);
 
-useEffect(() => {
-  // If this is a new chat, redirect to the compose screen
-  if (conversationId === 'new') {
-    router.replace({
-      pathname: '/chat/compose',
-      params: {
-        username: otherUsername,
-        userUuid: otherUserUuid,  // Make sure this is passed correctly
-      },
-    });
-    return;
-  }
+  useEffect(() => {
+    if (!conversationId) return;
+    loadConversation();
+  }, [conversationId]);
 
-  // Validate that we have the required params
-  if (!conversationId || !otherUserUuid) {
-    Alert.alert('Error', 'Invalid conversation parameters');
-    router.back();
-    return;
-  }
-
-  loadInitialData();
-}, [conversationId, otherUserUuid]);
-
-  const loadInitialData = async () => {
+  const loadConversation = async () => {
     try {
-      // Fetch all data in parallel for better performance
+      const conversations = await messagingService.getConversations();
+      const current = conversations.find(c => c.uuid === conversationId);
+      
+      if (!current) {
+        throw new Error('Conversation not found');
+      }
+
+      setOtherUsername(current.other_user.username);
+      setOtherUserUuid(current.other_user.uuid);
+      
+      await loadInitialData(current.other_user.uuid);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load conversation');
+      router.back();
+    }
+  };
+
+  const loadInitialData = async (otherUuid?: string) => {
+    try {
+      const otherToCheck = otherUuid ?? otherUserUuid;
+      
       const [user, messagesData, cost, wallet] = await Promise.all([
         authService.getCurrentUser(),
         messagingService.getConversationMessages(conversationId),
-        messagingService.checkMessageCost(otherUserUuid),
+        messagingService.checkMessageCost(otherToCheck),
         messagingService.getWalletBalance(),
       ]);
 
       setCurrentUserId(user.uuid);
-      setMessages(messagesData.reverse()); // Reverse to show newest at bottom
+      setMessages(messagesData.reverse());
       setMessageCost(cost);
       setWalletBalance(wallet.balance);
       
-      // Mark as read
       await messagingService.markAsRead(conversationId);
 
     } catch (error: any) {
-      console.error('Failed to load chat data:', error);
-      Alert.alert('Error', 'Failed to load conversation.');
+      console.error('Failed to load chat:', error);
+      Alert.alert('Error', 'Failed to load conversation.', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -87,7 +90,6 @@ useEffect(() => {
   const handleSend = async () => {
     if (!messageText.trim()) return;
 
-    // Check if user needs coins
     if (messageCost && !messageCost.is_free && walletBalance < messageCost.coin_cost) {
       Alert.alert(
         'Insufficient Coins',
@@ -97,7 +99,6 @@ useEffect(() => {
           {
             text: 'Get Coins',
             onPress: () => {
-              // TODO: Navigate to coin purchase
               Alert.alert('Coming Soon', 'Coin purchase will be available soon!');
             },
           },
@@ -108,15 +109,12 @@ useEffect(() => {
 
     setSending(true);
     const text = messageText;
-    setMessageText(''); // Clear input immediately
+    setMessageText('');
 
     try {
       const response = await messagingService.sendMessage(otherUserUuid, text);
-      
-      // Add message to list
       setMessages([...messages, response.data]);
       
-      // Update costs
       const [cost, wallet] = await Promise.all([
         messagingService.checkMessageCost(otherUserUuid),
         messagingService.getWalletBalance(),
@@ -124,13 +122,12 @@ useEffect(() => {
       setMessageCost(cost);
       setWalletBalance(wallet.balance);
       
-      // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
     } catch (error: any) {
-      setMessageText(text); // Restore text on error
+      setMessageText(text);
       Alert.alert('Error', error.message);
     } finally {
       setSending(false);
@@ -192,9 +189,21 @@ useEffect(() => {
               })}
             </Text>
             {item.coin_cost > 0 && (
-              <View style={styles.coinBadge}>
-                <Ionicons name="diamond" size={10} color={Colors.dark.primary} />
-                <Text style={styles.coinText}>{item.coin_cost}</Text>
+              <View style={[
+                styles.coinBadge,
+                isMyMessage && styles.myCoinBadge
+              ]}>
+                <Ionicons 
+                  name="diamond" 
+                  size={10} 
+                  color={isMyMessage ? '#FFF' : Colors.dark.primary} 
+                />
+                <Text style={[
+                  styles.coinText,
+                  isMyMessage && styles.myCoinText
+                ]}>
+                  {item.coin_cost}
+                </Text>
               </View>
             )}
           </View>
@@ -298,6 +307,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.dark.inputBorder,
+    backgroundColor: Colors.dark.background,
   },
   backButton: {
     padding: 8,
@@ -333,12 +343,13 @@ const styles = StyleSheet.create({
   messageContainer: {
     flexDirection: 'row',
     marginBottom: 12,
+    maxWidth: '85%',
   },
   myMessageContainer: {
-    justifyContent: 'flex-end',
+    alignSelf: 'flex-end',
   },
   otherMessageContainer: {
-    justifyContent: 'flex-start',
+    alignSelf: 'flex-start',
   },
   avatarContainer: {
     width: 32,
@@ -348,34 +359,42 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.dark.inputBorder,
   },
   avatarSpacer: {
     width: 32,
     height: 32,
   },
   messageBubble: {
-    maxWidth: '70%',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   myMessageBubble: {
-    backgroundColor: Colors.dark.primary,
+    backgroundColor: '#0084FF', // WhatsApp/Messenger-style blue
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {
-    backgroundColor: Colors.dark.inputBackground,
+    backgroundColor: '#2C2C2E', // Dark gray for received messages
     borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   messageText: {
     fontSize: 15,
     lineHeight: 20,
   },
   myMessageText: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
   otherMessageText: {
-    color: Colors.dark.text,
+    color: '#E5E5EA',
   },
   messageFooter: {
     flexDirection: 'row',
@@ -387,32 +406,45 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   myMessageTime: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   otherMessageTime: {
-    color: Colors.dark.placeholder,
+    color: 'rgba(229, 229, 234, 0.6)',
   },
   coinBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    backgroundColor: 'rgba(255, 159, 10, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  myCoinBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   coinText: {
     fontSize: 10,
     color: Colors.dark.primary,
     fontWeight: '600',
   },
+  myCoinText: {
+    color: '#FFFFFF',
+  },
   costWarning: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 159, 10, 0.1)',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 159, 10, 0.2)',
   },
   costWarningText: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.dark.primary,
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -432,16 +464,25 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     maxHeight: 100,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.inputBorder,
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.dark.primary,
+    backgroundColor: '#0084FF',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#0084FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   sendButtonDisabled: {
     opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

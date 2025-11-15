@@ -1,3 +1,4 @@
+import { useAuth } from '@/app/(tabs)/AuthContext';
 import { Colors } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -7,6 +8,7 @@ import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 const LOGO_IMAGE = require('../assets/Splash2.png');
 
 export default function SplashScreen() {
+  const { isAuthenticated, isProfileComplete, isLoadingAuth } = useAuth();
   const router = useRouter();
   
   // Animation values
@@ -15,6 +17,8 @@ export default function SplashScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
+    if (isLoadingAuth) return; // Wait until auth state is known
+
     // Parallel animations for logo
     Animated.parallel([
       // Fade in
@@ -53,12 +57,17 @@ export default function SplashScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        router.replace('/firstPage');
+        // Navigate based on auth state
+        if (isAuthenticated && isProfileComplete) {
+          router.replace('/(tabs)');
+        } else {
+          router.replace('/firstPage');
+        }
       });
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim, scaleAnim, slideAnim, router]);
+  }, [isLoadingAuth, isAuthenticated, isProfileComplete, router]);
 
   return (
     <View style={styles.container}>
