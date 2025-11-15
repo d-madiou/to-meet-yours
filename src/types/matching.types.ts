@@ -23,6 +23,7 @@ export interface SwipeResponse {
 export interface Match {
   id: string;
   matched_user: {
+    uuid: string;
     id: string;
     username: string;
     age: number | null;

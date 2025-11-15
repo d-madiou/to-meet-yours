@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -32,41 +33,32 @@ export default function ChatScreen() {
   const [currentUserId, setCurrentUserId] = useState('');
   const [messageCost, setMessageCost] = useState<MessageCostCheck | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
-  
+  const [isOnline] = useState(true); // mock
+
   const flatListRef = useRef<FlatList>(null);
+  const sendScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!conversationId) return;
-    loadConversation();
+    loadInitialData();
   }, [conversationId]);
 
-  const loadConversation = async () => {
+  const loadInitialData = async () => {
     try {
+      // First, get all conversations to find the 'other user' in this one
       const conversations = await messagingService.getConversations();
-      const current = conversations.find(c => c.uuid === conversationId);
-      
-      if (!current) {
-        throw new Error('Conversation not found');
-      }
+      const currentConversation = conversations.find(c => c.uuid === conversationId);
+      if (!currentConversation) throw new Error('Conversation not found');
 
-      setOtherUsername(current.other_user.username);
-      setOtherUserUuid(current.other_user.uuid);
-      
-      await loadInitialData(current.other_user.uuid);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load conversation');
-      router.back();
-    }
-  };
+      const otherUser = currentConversation.other_user;
+      setOtherUsername(otherUser.username);
+      setOtherUserUuid(otherUser.uuid);
 
-  const loadInitialData = async (otherUuid?: string) => {
-    try {
-      const otherToCheck = otherUuid ?? otherUserUuid;
-      
+      // Now fetch all data in parallel
       const [user, messagesData, cost, wallet] = await Promise.all([
         authService.getCurrentUser(),
         messagingService.getConversationMessages(conversationId),
-        messagingService.checkMessageCost(otherToCheck),
+        messagingService.checkMessageCost(otherUser.uuid),
         messagingService.getWalletBalance(),
       ]);
 
@@ -74,11 +66,7 @@ export default function ChatScreen() {
       setMessages(messagesData.reverse());
       setMessageCost(cost);
       setWalletBalance(wallet.balance);
-      
-      await messagingService.markAsRead(conversationId);
-
     } catch (error: any) {
-      console.error('Failed to load chat:', error);
       Alert.alert('Error', 'Failed to load conversation.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -87,48 +75,48 @@ export default function ChatScreen() {
     }
   };
 
+  const animateSend = () => {
+    Animated.sequence([
+      Animated.timing(sendScale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+      Animated.timing(sendScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
+
   const handleSend = async () => {
     if (!messageText.trim()) return;
 
     if (messageCost && !messageCost.is_free && walletBalance < messageCost.coin_cost) {
       Alert.alert(
         'Insufficient Coins',
-        `You need ${messageCost.coin_cost} coin(s) to send this message. Your balance: ${walletBalance}`,
+        `You need ${messageCost.coin_cost} coin(s). Balance: ${walletBalance}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Get Coins',
-            onPress: () => {
-              Alert.alert('Coming Soon', 'Coin purchase will be available soon!');
-            },
-          },
+          { text: 'Get Coins', onPress: () => Alert.alert('Coming Soon', 'Coin purchase coming soon!') },
         ]
       );
       return;
     }
 
+    animateSend();
     setSending(true);
-    const text = messageText;
+    const text = messageText.trim();
     setMessageText('');
 
     try {
       const response = await messagingService.sendMessage(otherUserUuid, text);
-      setMessages([...messages, response.data]);
-      
+      setMessages(prev => [...prev, response.data]);
+
       const [cost, wallet] = await Promise.all([
         messagingService.checkMessageCost(otherUserUuid),
         messagingService.getWalletBalance(),
       ]);
       setMessageCost(cost);
       setWalletBalance(wallet.balance);
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
 
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
       setMessageText(text);
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to send');
     } finally {
       setSending(false);
     }
@@ -136,72 +124,54 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isMyMessage = item.sender.uuid === currentUserId;
-    const showAvatar = !isMyMessage && (
-      index === 0 || messages[index - 1].sender.uuid !== item.sender.uuid
-    );
+    const prev = messages[index - 1];
+    const next = messages[index + 1];
+    const isFirst = !prev || prev.sender.uuid !== item.sender.uuid;
+    const isLast = !next || next.sender.uuid !== item.sender.uuid;
 
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessageContainer : styles.otherMessageContainer,
-        ]}
-      >
-        {/* Avatar for other user */}
-        {!isMyMessage && (
-          <View style={styles.avatarContainer}>
-            {showAvatar && item.sender.photo_url ? (
-              <Image
-                source={{ uri: item.sender.photo_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={styles.avatarSpacer} />
-            )}
-          </View>
+      <View style={[styles.messageRow, isMyMessage ? styles.rowRight : styles.rowLeft]}>
+        {/* Avatar - only for receiver, first in group */}
+        {!isMyMessage && isFirst && (
+          <Image source={item.sender.photo_url ? { uri: item.sender.photo_url } : undefined} style={styles.avatar} />
         )}
+        {!isMyMessage && !isFirst && <View style={styles.avatarSpacer} />}
 
-        {/* Message Bubble */}
+        {/* Bubble */}
         <View
           style={[
-            styles.messageBubble,
-            isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
+            styles.bubble,
+            isMyMessage ? styles.myBubble : styles.otherBubble,
+            isFirst && (isMyMessage ? styles.myFirst : styles.otherFirst),
+            isLast && (isMyMessage ? styles.myLast : styles.otherLast),
           ]}
         >
-          <Text
-            style={[
-              styles.messageText,
-              isMyMessage ? styles.myMessageText : styles.otherMessageText,
-            ]}
-          >
+          <Text style={[styles.msgText, isMyMessage ? styles.myText : styles.otherText]}>
             {item.content}
           </Text>
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.messageTime,
-                isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
-              ]}
-            >
-              {new Date(item.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
+
+          <View style={styles.meta}>
+            <Text style={[styles.time, isMyMessage ? styles.myTime : styles.otherTime]}>
+              {new Date(item.created_at).toLocaleTimeString('en-US', {
+                hour: 'numeric',
                 minute: '2-digit',
-              })}
+                hour12: true,
+              }).replace(' ', '').toLowerCase()}
             </Text>
+
+            {isMyMessage && (
+              <Ionicons
+                name={item.delivered ? 'checkmark-done' : 'checkmark'}
+                size={14}
+                color={item.delivered ? '#4FC3F7' : 'rgba(255,255,255,0.6)'}
+                style={{ marginLeft: 4 }}
+              />
+            )}
+
             {item.coin_cost > 0 && (
-              <View style={[
-                styles.coinBadge,
-                isMyMessage && styles.myCoinBadge
-              ]}>
-                <Ionicons 
-                  name="diamond" 
-                  size={10} 
-                  color={isMyMessage ? '#FFF' : Colors.dark.primary} 
-                />
-                <Text style={[
-                  styles.coinText,
-                  isMyMessage && styles.myCoinText
-                ]}>
+              <View style={[styles.coinTag, isMyMessage && styles.myCoinTag]}>
+                <Ionicons name="diamond" size={11} color={isMyMessage ? '#FFF' : '#FF9F0A'} />
+                <Text style={[styles.coinNum, isMyMessage && { color: '#FFF' }]}>
                   {item.coin_cost}
                 </Text>
               </View>
@@ -214,7 +184,7 @@ export default function ChatScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.loading}>
         <ActivityIndicator size="large" color={Colors.dark.primary} />
       </View>
     );
@@ -223,20 +193,23 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.dark.text} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{otherUsername}</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.coinButton}>
-            <Ionicons name="diamond-outline" size={20} color={Colors.dark.primary} />
-            <Text style={styles.coinBalance}>{walletBalance}</Text>
-          </TouchableOpacity>
+
+        <View style={styles.headerInfo}>
+          <Text style={styles.username}>{otherUsername}</Text>
+          <Text style={styles.status}>{isOnline ? 'Online' : 'Last seen recently'}</Text>
+        </View>
+
+        <View style={styles.coinBadge}>
+          <Ionicons name="diamond" size={16} color="#FF9F0A" />
+          <Text style={styles.balance}>{walletBalance}</Text>
         </View>
       </View>
 
@@ -244,230 +217,171 @@ export default function ChatScreen() {
       <FlatList
         ref={flatListRef}
         data={messages}
-        keyExtractor={(item) => item.uuid}
+        keyExtractor={item => item.uuid}
         renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       />
 
-      {/* Cost Warning */}
+      {/* Calculate Cost Warning */}
       {messageCost && !messageCost.is_free && (
-        <View style={styles.costWarning}>
-          <Ionicons name="information-circle" size={16} color={Colors.dark.primary} />
-          <Text style={styles.costWarningText}>
-            Next message costs {messageCost.coin_cost} coin(s)
+        <View style={styles.costBar}>
+          <Ionicons name="alert-circle" size={16} color="#FF9F0A" />
+          <Text style={styles.costMsg}>
+            Next message costs <Text style={{ fontWeight: '700' }}>{messageCost.coin_cost}</Text> coin{messageCost.coin_cost > 1 ? 's' : ''}
           </Text>
         </View>
       )}
 
       {/* Input */}
-      <View style={styles.inputContainer}>
+      <View style={styles.inputBar}>
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
-          placeholderTextColor={Colors.dark.placeholder}
+          placeholderTextColor="#8E8E93"
           value={messageText}
           onChangeText={setMessageText}
           multiline
           maxLength={1000}
         />
-        <TouchableOpacity
-          style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!messageText.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="send" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: sendScale }] }}>
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              (!messageText.trim() || sending) && styles.sendBtnDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!messageText.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size={20} color="#FFF" />
+            ) : (
+              <Ionicons name="send" size={20} color="#FFF" />
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
+/* ====================== STYLES ====================== */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.dark.background,
-  },
+  container: { flex: 1, backgroundColor: '#000' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.dark.inputBorder,
-    backgroundColor: Colors.dark.background,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.dark.text,
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerRight: {
-    width: 80,
-    alignItems: 'flex-end',
-  },
-  coinButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.dark.inputBackground,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingTop: 56,
+    paddingBottom: 12,
+    backgroundColor: '#111',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1C1C1E',
   },
-  coinBalance: {
-    color: Colors.dark.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  messagesList: {
-    padding: 16,
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    maxWidth: '85%',
-  },
-  myMessageContainer: {
-    alignSelf: 'flex-end',
-  },
-  otherMessageContainer: {
-    alignSelf: 'flex-start',
-  },
-  avatarContainer: {
-    width: 32,
-    marginRight: 8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: Colors.dark.inputBorder,
-  },
-  avatarSpacer: {
-    width: 32,
-    height: 32,
-  },
-  messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  myMessageBubble: {
-    backgroundColor: '#0084FF', // WhatsApp/Messenger-style blue
-    borderBottomRightRadius: 4,
-  },
-  otherMessageBubble: {
-    backgroundColor: '#2C2C2E', // Dark gray for received messages
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  myMessageText: {
-    color: '#FFFFFF',
-  },
-  otherMessageText: {
-    color: '#E5E5EA',
-  },
-  messageFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
-  },
-  messageTime: {
-    fontSize: 11,
-  },
-  myMessageTime: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  otherMessageTime: {
-    color: 'rgba(229, 229, 234, 0.6)',
-  },
+  backBtn: { padding: 8 },
+  headerInfo: { flex: 1, marginLeft: 8 },
+  username: { fontSize: 17, fontWeight: '600', color: '#FFF' },
+  status: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
   coinBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(255, 159, 10, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    backgroundColor: '#1C1C1E',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
   },
-  myCoinBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  balance: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+
+  // Messages
+  list: { paddingVertical: 16, paddingHorizontal: 12 },
+
+  messageRow: { flexDirection: 'row', marginBottom: 8, alignItems: 'flex-end' },
+  rowLeft: { justifyContent: 'flex-start' },
+  rowRight: { justifyContent: 'flex-end' },
+
+  avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 8 },
+  avatarSpacer: { width: 44 },
+
+  bubble: {
+    maxWidth: '78%',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    marginHorizontal: 2,
   },
-  coinText: {
-    fontSize: 10,
-    color: Colors.dark.primary,
-    fontWeight: '600',
-  },
-  myCoinText: {
-    color: '#FFFFFF',
-  },
-  costWarning: {
+  myBubble: { backgroundColor: '#0084FF' },
+  otherBubble: { backgroundColor: '#2C2C2E', borderWidth: 0.5, borderColor: '#3A3A3C' },
+
+  // Corner tweaks for message grouping
+  myFirst: { borderTopRightRadius: 6 },
+  myLast: { borderBottomRightRadius: 6 },
+  otherFirst: { borderTopLeftRadius: 6 },
+  otherLast: { borderBottomLeftRadius: 6 },
+
+  msgText: { fontSize: 15.5, lineHeight: 21 },
+  myText: { color: '#FFF' },
+  otherText: { color: '#E5E5EA' },
+
+  meta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },
+  time: { fontSize: 11.5, fontWeight: '500' },
+  myTime: { color: 'rgba(255,255,255,0.7)' },
+  otherTime: { color: 'rgba(229,229,234,0.6)' },
+
+  coinTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 159, 10, 0.1)',
+    backgroundColor: 'rgba(255,159,10,0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    gap: 2,
+  },
+  myCoinTag: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  coinNum: { fontSize: 10, fontWeight: '600', color: '#FF9F0A' },
+
+  // Cost warning
+  costBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,159,10,0.1)',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 9,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 159, 10, 0.2)',
+    borderTopColor: 'rgba(255,159,10,0.2)',
+    gap: 6,
   },
-  costWarningText: {
-    fontSize: 13,
-    color: Colors.dark.primary,
-    fontWeight: '500',
-  },
-  inputContainer: {
+  costMsg: { fontSize: 13.5, color: '#FF9F0A', fontWeight: '500' },
+
+  // Input
+  inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 12,
-    backgroundColor: Colors.dark.background,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#111',
     borderTopWidth: 1,
-    borderTopColor: Colors.dark.inputBorder,
+    borderTopColor: '#1C1C1E',
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.dark.inputBackground,
-    borderRadius: 24,
+    backgroundColor: '#1C1C1E',
+    color: '#FFF',
+    fontSize: 16,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: Colors.dark.text,
+    paddingVertical: 11,
+    borderRadius: 22,
     maxHeight: 100,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: Colors.dark.inputBorder,
+    borderColor: '#2C2C2E',
   },
-  sendButton: {
+  sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -477,12 +391,8 @@ const styles = StyleSheet.create({
     shadowColor: '#0084FF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  sendButtonDisabled: {
-    opacity: 0.5,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
+  sendBtnDisabled: { backgroundColor: '#555', shadowOpacity: 0, elevation: 0 },
 });

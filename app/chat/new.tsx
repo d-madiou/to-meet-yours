@@ -1,115 +1,168 @@
+/*  NewChatScreen.tsx  */
 import { Colors } from '@/constants/theme';
 import { messagingService } from '@/src/services/api/messaging.service';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+interface Params {
+  userUuid?: string;
+  username?: string;
+}
+
+/* --------------------------------------------------------------- */
 export default function NewChatScreen() {
-  const params = useLocalSearchParams();
-  const userUuid = params.userUuid as string;
-  const username = params.username as string;
-  const [fadeAnim] = useState(new Animated.Value(0));
+  const raw = useLocalSearchParams() as Params;
+  const userUuid = raw.userUuid;
+  const username = raw.username;
 
+  // Fade-in for the whole card
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Ring pulse animation
+  const ring1Anim = useRef(new Animated.Value(1)).current;
+  const ring2Anim = useRef(new Animated.Value(1)).current;
+
+  /* ---------- Fade-in ---------- */
   useEffect(() => {
-    // Fade in animation
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
+  }, [fadeAnim]);
 
-    findOrCreateConversation();
-  }, []);
+  /* ---------- Ring pulse loop ---------- */
+  useEffect(() => {
+    const pulse = (anim: Animated.Value) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
 
-  const findOrCreateConversation = async () => {
-    try {
-      // Validate params
+    const a1 = pulse(ring1Anim);
+    const a2 = pulse(ring2Anim);
+    a1.start();
+    a2.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+    };
+  }, [ring1Anim, ring2Anim]);
+
+  /* ---------- Find / create conversation ---------- */
+  useEffect(() => {
+    const go = async () => {
+      // ---- validation ----
       if (!userUuid || userUuid === 'undefined' || !username) {
-        console.error('Invalid params:', { userUuid, username });
-        Alert.alert('Error', 'Invalid user information');
+        console.warn('Invalid navigation params →', { userUuid, username });
+        Alert.alert('Error', 'Missing user information');
         router.back();
         return;
       }
 
-      // Get all conversations
-      const conversations = await messagingService.getConversations();
-      
-      // Find existing conversation with this user
-      const existing = conversations.find(
-        c => c.other_user.uuid === userUuid
-      );
+      try {
+        const convs = await messagingService.getConversations();
 
-      if (existing) {
-        // Navigate to existing conversation
-        router.replace({
-          pathname: '/chat/[id]',
-          params: {
-            id: existing.uuid,
-            username: existing.other_user.username,
-            userUuid: existing.other_user.uuid,
-          },
-        });
-      } else {
-        // No existing conversation, go to compose screen
-        router.replace({
-          pathname: '/chat/compose',
-          params: {
-            username: username,
-            userUuid: userUuid,
-          },
-        });
+        const existing = convs.find(c => c.other_user.uuid === userUuid);
+        if (existing) {
+          router.replace({
+            pathname: '/chat/[id]',
+            params: {
+              id: existing.uuid,
+              username: existing.other_user.username,
+              userUuid: existing.other_user.uuid,
+            },
+          });
+        } else {
+          router.replace({
+            pathname: '/chat/compose',
+            params: { userUuid, username },
+          });
+        }
+      } catch (err: any) {
+        console.error('NewChatScreen →', err);
+        Alert.alert('Error', err.message ?? 'Failed to start chat');
+        router.back();
       }
-    } catch (error: any) {
-      console.error('Find conversation error:', error);
-      Alert.alert('Error', 'Failed to start conversation');
-      router.back();
-    }
-  };
+    };
 
+    // tiny delay so the fade-in finishes before navigation
+    const tid = setTimeout(go, 350);
+    return () => clearTimeout(tid);
+  }, [userUuid, username]);
+
+  /* --------------------------------------------------------------- */
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* Icon Container */}
-        <View style={styles.iconContainer}>
-          <View style={styles.iconBackground}>
-            <Ionicons name="chatbubbles" size={48} color="#0084FF" />
+        {/* ---------- Icon + pulsing rings ---------- */}
+        <View style={styles.iconWrapper} accessibilityLabel="Starting chat">
+          <Animated.View
+            style={[
+              styles.ring,
+              styles.ring1,
+              { transform: [{ scale: ring1Anim }] },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.ring,
+              styles.ring2,
+              { transform: [{ scale: ring2Anim }] },
+            ]}
+          />
+          <View style={styles.iconBg}>
+            <Ionicons name="chatbubbles" size={48} color={Colors.dark.primary} />
           </View>
-          
-          {/* Animated rings */}
-          <View style={styles.ring1} />
-          <View style={styles.ring2} />
         </View>
 
-        {/* Loading Indicator */}
-        <ActivityIndicator 
-          size="large" 
-          color="#0084FF" 
+        {/* ---------- Loader ---------- */}
+        <ActivityIndicator
+          size="large"
+          color={Colors.dark.primary}
           style={styles.loader}
         />
 
-        {/* Text */}
-        <Text style={styles.loadingText}>Opening conversation...</Text>
-        {username && (
-          <Text style={styles.usernameText}>with {username}</Text>
-        )}
+        {/* ---------- Text ---------- */}
+        <Text style={styles.title}>Opening conversation…</Text>
+        {username && <Text style={styles.subtitle}>with {username}</Text>}
       </Animated.View>
     </View>
   );
 }
 
+/* --------------------------------------------------------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: Colors.dark.background,
-  },
-  content: {
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  iconContainer: {
+  content: { alignItems: 'center' },
+
+  /* ----- Icon + rings ----- */
+  iconWrapper: {
     position: 'relative',
     width: 120,
     height: 120,
@@ -117,45 +170,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  iconBackground: {
+  iconBg: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(0, 132, 255, 0.12)',
+    backgroundColor: 'rgba(0,132,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(0, 132, 255, 0.2)',
+    borderColor: 'rgba(0,132,255,0.2)',
     zIndex: 3,
   },
-  ring1: {
+  ring: {
     position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 2,
-    borderColor: 'rgba(0, 132, 255, 0.15)',
-    zIndex: 2,
-  },
-  ring2: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
     borderRadius: 60,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 132, 255, 0.08)',
-    zIndex: 1,
+    borderWidth: 2,
+    borderColor: Colors.dark.primary,
+    opacity: 0.2,
   },
-  loader: {
-    marginBottom: 16,
-  },
-  loadingText: {
+  ring1: { width: 110, height: 110 },
+  ring2: { width: 120, height: 120 },
+
+  loader: { marginBottom: 16 },
+
+  title: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.dark.text,
     marginBottom: 4,
   },
-  usernameText: {
+  subtitle: {
     fontSize: 14,
     color: Colors.dark.placeholder,
   },
