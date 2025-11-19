@@ -10,6 +10,9 @@ import { AuthStorage } from "@/src/utils/auth.storage";
 import { apiService } from "./api.service";
 
 class AuthService {
+  getUser(otherUserUuid: string): import("../../types/messaging.types").BaseUser | PromiseLike<import("../../types/messaging.types").BaseUser> {
+    throw new Error('Method not implemented.');
+  }
   // 🔹 LOGIN
   async login(credentials: LoginRequest): Promise<LoginResponse> {
   try {

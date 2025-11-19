@@ -83,47 +83,94 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!messageText.trim()) return;
+  if (!messageText.trim()) return;
 
-    if (messageCost && !messageCost.is_free && walletBalance < messageCost.coin_cost) {
+  // Check if message costs coins and user has insufficient balance
+  if (messageCost && !messageCost.is_free && walletBalance < messageCost.coin_cost) {
+    // Show upgrade modal instead of simple alert
+    Alert.alert(
+      '💎 Need More Coins',
+      `You need ${messageCost.coin_cost} coin(s) to send this message.\n\nCurrent balance: ${walletBalance} coin(s)\nFree messages used: ${messageCost.free_messages_limit - (messageCost.free_messages_remaining || 0)}/${messageCost.free_messages_limit}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Get Coins', 
+          onPress: () => {
+            // Navigate to coin purchase screen
+            router.push({
+              pathname: '/wallet/purchase',
+              params: { 
+                returnTo: `/chat/${conversationId}`,
+                minCoins: messageCost.coin_cost 
+              }
+            });
+          }
+        },
+      ]
+    );
+    return;
+  }
+
+  animateSend();
+  setSending(true);
+  const text = messageText.trim();
+  setMessageText('');
+
+  try {
+    const response = await messagingService.sendMessage(otherUserUuid, text);
+    setMessages(prev => [...prev, response.data]);
+
+    // Update cost and balance after successful send
+    const [cost, wallet] = await Promise.all([
+      messagingService.checkMessageCost(otherUserUuid),
+      messagingService.getWalletBalance(),
+    ]);
+    setMessageCost(cost);
+    setWalletBalance(wallet.balance);
+
+    // Show success notification if coins were spent
+    if (response.coin_cost > 0) {
+      // Optional: Show a small toast notification
       Alert.alert(
-        'Insufficient Coins',
-        `You need ${messageCost.coin_cost} coin(s). Balance: ${walletBalance}`,
+        'Message Sent',
+        `${response.coin_cost} coin(s) deducted. New balance: ${wallet.balance}`,
+        [{ text: 'OK' }],
+        { cancelable: true }
+      );
+    }
+
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  } catch (error: any) {
+    setMessageText(text);
+    
+    // Check if error is due to insufficient coins
+    if (error.message?.includes('Insufficient coins')) {
+      Alert.alert(
+        '💎 Insufficient Coins',
+        error.message,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Get Coins', onPress: () => Alert.alert('Coming Soon', 'Coin purchase coming soon!') },
+          { 
+            text: 'Get Coins', 
+            onPress: () => router.push('/wallet/purchase')
+          },
         ]
       );
-      return;
+    } else {
+      Alert.alert('Error', error.message || 'Failed to send message');
     }
-
-    animateSend();
-    setSending(true);
-    const text = messageText.trim();
-    setMessageText('');
-
-    try {
-      const response = await messagingService.sendMessage(otherUserUuid, text);
-      setMessages(prev => [...prev, response.data]);
-
-      const [cost, wallet] = await Promise.all([
-        messagingService.checkMessageCost(otherUserUuid),
-        messagingService.getWalletBalance(),
-      ]);
-      setMessageCost(cost);
-      setWalletBalance(wallet.balance);
-
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (error: any) {
-      setMessageText(text);
-      Alert.alert('Error', error.message || 'Failed to send');
-    } finally {
-      setSending(false);
-    }
-  };
+  } finally {
+    setSending(false);
+  }
+};
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isMyMessage = item.sender.uuid === currentUserId;
+    // The backend may sometimes return `uuid` or `id` for the sender.
+    // Normalize to string and compare against the current user id to determine
+    // whether a message was sent by the current user.
+    const senderIdStr = String(item.sender?.uuid ?? item.sender?.id ?? '');
+    const currentUserIdStr = String(currentUserId ?? '');
+    const isMyMessage = !!currentUserIdStr && senderIdStr === currentUserIdStr;
     const prev = messages[index - 1];
     const next = messages[index + 1];
     const isFirst = !prev || prev.sender.uuid !== item.sender.uuid;
@@ -168,12 +215,30 @@ export default function ChatScreen() {
               />
             )}
 
-            {item.coin_cost > 0 && (
-              <View style={[styles.coinTag, isMyMessage && styles.myCoinTag]}>
-                <Ionicons name="diamond" size={11} color={isMyMessage ? '#FFF' : '#FF9F0A'} />
-                <Text style={[styles.coinNum, isMyMessage && { color: '#FFF' }]}>
-                  {item.coin_cost}
-                </Text>
+            {messageCost && (
+              <View style={styles.costContainer}>
+                {messageCost.is_free ? (
+                  <View style={styles.freeMessagesBar}>
+                    <Ionicons name="gift" size={16} color="#4CAF50" />
+                    <Text style={styles.freeMessagesText}>
+                      {messageCost.free_messages_remaining} free message{messageCost.free_messages_remaining !== 1 ? 's' : ''} left today (all conversations)
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.paidMessagesBar}>
+                    <Ionicons name="alert-circle" size={16} color="#FF9F0A" />
+                    <Text style={styles.costMsg}>
+                      Next message costs <Text style={styles.costAmount}>{messageCost.coin_cost}</Text> coin{messageCost.coin_cost > 1 ? 's' : ''}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.getCoinsBtn}
+                      onPress={() => router.push('/wallet/purchase')}
+                    >
+                      <Ionicons name="diamond" size={14} color="#FFF" />
+                      <Text style={styles.getCoinsText}>Get Coins</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -393,6 +458,63 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 5,
+  },
+  costContainer: {
+    backgroundColor: Colors.dark.inputBackground,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.inputBorder,
+  },
+  
+  freeMessagesBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  
+  freeMessagesText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  
+  paidMessagesBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    backgroundColor: 'rgba(255, 159, 10, 0.1)',
+  },
+  
+  costMsg: {
+    flex: 1,
+    fontSize: 13,
+    color: '#FF9F0A',
+  },
+  
+  costAmount: {
+    fontWeight: '700',
+    color: '#FF9F0A',
+  },
+  
+  getCoinsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  
+  getCoinsText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   sendBtnDisabled: { backgroundColor: '#555', shadowOpacity: 0, elevation: 0 },
 });

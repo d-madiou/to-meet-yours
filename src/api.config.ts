@@ -1,16 +1,13 @@
-// src/config/api.config.ts
-
 const isDev = process.env.NODE_ENV === 'development';
 
 // Base API configuration
 export const API_CONFIG = {
   BASE_URL: isDev
-    ? 'http://localhost:8000/api/'
+    ? 'http://172.16.117.74:8000/api/'
     : 'https://api.yourproductiondomain.com/api',
   TIMEOUT: 5000,
 };
 
-// All backend endpoints
 export const ENDPOINTS = {
   AUTH: {
     REGISTER: '/auth/register/',
@@ -20,8 +17,7 @@ export const ENDPOINTS = {
   },
 
   USERS: {
-    // Change from '/api/device-tokens/register/'
-    REGISTER_DEVICE: '/device-tokens/register/', // <-- CORRECTED PATH
+    REGISTER_DEVICE: '/device-tokens/register/',
   },
 
   INTERESTS : '/interests/',
@@ -44,7 +40,7 @@ export const ENDPOINTS = {
   },
 
   MESSAGING: {
-    LIST_CONVERSATIONS: 'conversations/',           // No leading slash
+    LIST_CONVERSATIONS: '/conversations/',           // No leading slash
     CONVERSATION_MESSAGES: (uuid: string) => `conversations/${uuid}/messages/`,
     MARK_READ: (uuid: string) => `conversations/${uuid}/mark_read/`,
     UNREAD_COUNT: 'conversations/unread_count/',

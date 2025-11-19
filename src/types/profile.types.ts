@@ -23,6 +23,7 @@ export interface Profile {
 }
 
 export interface ProfilePhoto {
+  url: string | undefined;
   id?: number;
   profile?: string;
   image: string;

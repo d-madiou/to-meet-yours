@@ -14,26 +14,26 @@ class MessagingService {
    * Get list of conversations
    */
   async getConversations(): Promise<Conversation[]> {
-  try {
-    console.log('Fetching conversations from:', ENDPOINTS.MESSAGING.LIST_CONVERSATIONS);
-    
-    const response = await apiService.get<{ results: Conversation[] }>(
-      ENDPOINTS.MESSAGING.LIST_CONVERSATIONS
-    );
-    
-    console.log('Conversations response:', response);
-    
-    // Handle both paginated and non-paginated responses
-    if (Array.isArray(response)) {
-      return response;
+    try {
+      console.log('Fetching conversations from:', ENDPOINTS.MESSAGING.LIST_CONVERSATIONS);
+      
+      const response = await apiService.get<{ results: Conversation[] }>(
+        ENDPOINTS.MESSAGING.LIST_CONVERSATIONS
+      );
+      
+      console.log('Conversations response:', response);
+      
+      // Handle both paginated and non-paginated responses
+      if (Array.isArray(response)) {
+        return response;
+      }
+      
+      return response.results || [];
+    } catch (error: any) {
+      console.error('Get conversations error:', error);
+      throw this.handleError(error);
     }
-    
-    return response.results || [];
-  } catch (error: any) {
-    console.error('Get conversations error:', error);
-    throw this.handleError(error);
   }
-}
 
   /**
    * Get messages for a conversation
@@ -53,73 +53,77 @@ class MessagingService {
    * Send a message
    */
   async sendMessage(receiverUuid: string, content: string): Promise<SendMessageResponse> {
-  try {
-    console.log('Sending message to:', receiverUuid);
-    
-    const data: SendMessageRequest = {
-      receiver_uuid: receiverUuid,
-      content: content.trim(),
-    };
+    try {
+      console.log('Sending message to:', receiverUuid);
+      
+      const data: SendMessageRequest = {
+        receiver_uuid: receiverUuid,
+        content: content.trim(),
+      };
 
-    const response = await apiService.post<SendMessageResponse>(
-      ENDPOINTS.MESSAGING.SEND_MESSAGE,
-      data
-    );
+      const response = await apiService.post<SendMessageResponse>(
+        ENDPOINTS.MESSAGING.SEND_MESSAGE,
+        data
+      );
 
-    console.log('Send message response:', response);
-    
-    return response;
-  } catch (error: any) {
-    console.error('Send message error:', error);
-    throw this.handleError(error);
+      console.log('Send message response:', response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('Send message error:', error);
+      throw this.handleError(error);
+    }
   }
-}
 
+  /**
+   * Get conversation with specific user
+   */
   async getConversationWithUser(userUuid: string): Promise<Conversation | null> {
-  try {
-    const conversations = await this.getConversations();
-    
-    // Try to find by UUID or ID
-    const conversation = conversations.find(conv => {
-      const otherUser = conv.other_user;
-      return otherUser.uuid === userUuid || 
-             otherUser.id === userUuid ||
-             otherUser.uuid === String(userUuid) ||
-             otherUser.id === String(userUuid);
-    });
-    
-    return conversation || null;
-  } catch (error: any) {
-    console.error('Get conversation with user error:', error);
-    return null;
+    try {
+      const conversations = await this.getConversations();
+      
+      // Try to find by UUID or ID
+      const conversation = conversations.find(conv => {
+        const otherUser = conv.other_user;
+        return otherUser.uuid === userUuid || 
+               otherUser.id === userUuid ||
+               otherUser.uuid === String(userUuid) ||
+               otherUser.id === String(userUuid);
+      });
+      
+      return conversation || null;
+    } catch (error: any) {
+      console.error('Get conversation with user error:', error);
+      return null;
+    }
   }
-}
 
   /**
    * Check message cost before sending
+   * Now returns GLOBAL daily stats (not per conversation)
    */
   async checkMessageCost(receiverUuid: string): Promise<MessageCostCheck> {
-  try {
-    // Validate UUID
-    if (!receiverUuid || receiverUuid === 'undefined') {
-      throw new Error('Invalid receiver UUID');
-    }
+    try {
+      // Validate UUID
+      if (!receiverUuid || receiverUuid === 'undefined') {
+        throw new Error('Invalid receiver UUID');
+      }
 
-    const response = await apiService.get<MessageCostCheck>(
-      `${ENDPOINTS.MESSAGING.CHECK_COST}?receiver_uuid=${receiverUuid}`
-    );
-    return response;
-  } catch (error: any) {
-    console.error('Check message cost error:', error);
-    // Return default values on error
-    return {
-      coin_cost: 0,
-      is_free: true,
-      free_messages_remaining: 3,
-      free_messages_limit: 3,
-    };
+      const response = await apiService.get<MessageCostCheck>(
+        `${ENDPOINTS.MESSAGING.CHECK_COST}?receiver_uuid=${receiverUuid}`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Check message cost error:', error);
+      // Return default values on error
+      return {
+        coin_cost: 0,
+        is_free: true,
+        free_messages_remaining: 3,
+        free_messages_limit: 3,
+      };
+    }
   }
-}
 
   /**
    * Mark conversation as read
@@ -158,11 +162,57 @@ class MessagingService {
     }
   }
 
+  /**
+   * Purchase coins
+   * FIX: This was missing!
+   */
+  async purchaseCoins(amount: number, paymentReference: string): Promise<any> {
+    try {
+      console.log('Purchasing coins:', { amount, paymentReference });
+      
+      const response = await apiService.post(
+        ENDPOINTS.WALLET.PURCHASE,
+        {
+          amount,
+          payment_reference: paymentReference,
+        }
+      );
+      
+      console.log('Purchase response:', response);
+      return response;
+    } catch (error: any) {
+      console.error('Purchase coins error:', error);
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get transaction history
+   * FIX: This was missing!
+   */
+  async getTransactionHistory(limit: number = 50): Promise<any[]> {
+    try {
+      const response = await apiService.get<{ results: any[] }>(
+        `${ENDPOINTS.WALLET.TRANSACTIONS}?limit=${limit}`
+      );
+      return response.results || [];
+    } catch (error: any) {
+      console.error('Get transaction history error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Handle errors consistently
+   */
   private handleError(error: any): Error {
     if (error.response?.data) {
       const errorData = error.response.data;
       if (errorData.message) {
         return new Error(errorData.message);
+      }
+      if (errorData.error) {
+        return new Error(errorData.error);
       }
       if (typeof errorData === 'string') {
         return new Error(errorData);
