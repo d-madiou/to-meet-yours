@@ -20,23 +20,23 @@ class ProfileService {
    * Update profile information
    */
   async updateProfile(data: ProfileUpdateRequest): Promise<Profile> {
-    try {
-      // Convert Date to string if needed
-      if (data.birth_date) {
-        const date = new Date(data.birth_date);
-        data.birth_date = date.toISOString().split('T')[0]; // YYYY-MM-DD
-      }
-
-      const response = await apiService.patch<{ profile: Profile }>(
-        ENDPOINTS.PROFILE.UPDATE,
-        data
-      );
-      
-      return response.profile;
-    } catch (error: any) {
-      throw this.handleError(error);
+  try {
+    // Convert Date to string if needed
+    if (data.birth_date && typeof data.birth_date !== 'string') {
+      const date = new Date(data.birth_date);
+      data.birth_date = date.toISOString().split('T')[0]; // YYYY-MM-DD
     }
+
+    const response = await apiService.patch<{ profile: Profile }>(
+      '/profile/update/',  // Note the trailing slash!
+      data
+    );
+    
+    return response.profile;
+  } catch (error: any) {
+    throw this.handleError(error);
   }
+}
 
   /**
    * Upload profile photo
@@ -107,7 +107,7 @@ class ProfileService {
   // Get user public profile
   async getUserProfile(userId: string): Promise<any> {
   try {
-    const response = await apiService.get(`/users/${userId}/detail/`);
+    const response = await apiService.get(`/users/${userId}/profile/`);
     return response;
   } catch (error: any) {
     throw this.handleError(error);

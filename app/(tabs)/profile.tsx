@@ -143,17 +143,23 @@ export default function ProfileScreen() {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.total_matches || 0}</Text>
+          <Text style={styles.statValue}>
+            {profile?.actual_matches ?? profile?.total_matches ?? 0}
+          </Text>
           <Text style={styles.statLabel}>Matches</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.profile_views || 0}</Text>
+          <Text style={styles.statValue}>
+            {profile?.actual_views ?? profile?.profile_views ?? 0}
+          </Text>
           <Text style={styles.statLabel}>Views</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{profile?.profile_completion_percentage || 0}%</Text>
+          <Text style={styles.statValue}>
+            {profile?.profile_completion_percentage ?? 0}%
+          </Text>
           <Text style={styles.statLabel}>Complete</Text>
         </View>
       </View>

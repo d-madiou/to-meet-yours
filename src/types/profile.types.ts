@@ -1,5 +1,5 @@
 export interface Profile {
-  user: string; // UUID
+  user: string;
   bio: string;
   birth_date: string | null;
   age: number | null;
@@ -12,14 +12,21 @@ export interface Profile {
   max_age_preference: number;
   max_distance_km: number;
   profile_completion_percentage: number;
+  
+  // Original stats (might be stale)
   total_matches: number;
   total_messages_sent: number;
   profile_views: number;
+  
+  // New calculated stats (always accurate)
+  actual_matches: number;
+  actual_views: number;
+  actual_messages_sent: number;
+  
   photos: ProfilePhoto[];
   interests: ProfileInterest[];
   created_at: string;
   updated_at: string;
-  is_verified: boolean;
 }
 
 export interface ProfilePhoto {

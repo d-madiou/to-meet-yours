@@ -94,8 +94,9 @@ export default function NewChatScreen() {
             },
           });
         } else {
+          // Use the fixed compose screen while repairing the original compose.tsx
           router.replace({
-            pathname: '/chat/compose',
+            pathname: '/chat/compose_fix',
             params: { userUuid, username },
           });
         }

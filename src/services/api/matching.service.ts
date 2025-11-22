@@ -1,8 +1,8 @@
 import { ENDPOINTS } from '@/src/api.config';
 import {
-    LikesResponse,
-    SwipeAction,
-    SwipeResponse
+  LikesResponse,
+  SwipeAction,
+  SwipeResponse
 } from '@/src/types/matching.types';
 import { apiService } from './api.service';
 
@@ -85,6 +85,18 @@ class MatchingService {
       throw this.handleError(error);
     }
   }
+
+  async blockUser(userId: string, reason?: string): Promise<any> {
+  try {
+    const response = await apiService.post('/matching/block/', {
+      blocked_user_id: userId,
+      reason: reason || '',
+    });
+    return response;
+  } catch (error: any) {
+    throw this.handleError(error);
+  }
+}
 
   private handleError(error: any): Error {
     if (error.response?.data) {

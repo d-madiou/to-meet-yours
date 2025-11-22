@@ -17,43 +17,61 @@ import {
 
 export default function MessagesScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true); // Only for the very first mount
+  const [refreshing, setRefreshing] = useState(false); // For Pull-to-refresh
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Track if we have loaded data at least once
+  const [isInitialLoad, setIsInitialLoad] = useState(true); 
 
   useFocusEffect(
     useCallback(() => {
-      loadConversations();
-      loadUnreadCount();
+      loadData();
     }, [])
   );
 
-  const loadConversations = async () => {
+  const loadData = async () => {
+    // Only show the full screen loader if this is the first time app opens this screen
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+
     try {
-      const data = await messagingService.getConversations();
+      // Fetch everything in parallel
+      const [data, count] = await Promise.all([
+        messagingService.getConversations(),
+        messagingService.getUnreadCount()
+      ]);
+      
       setConversations(data);
+      setUnreadCount(count);
     } catch (error: any) {
       console.error('Load conversations error:', error);
     } finally {
       setLoading(false);
+      setIsInitialLoad(false); // Mark as loaded, so future focus events are silent
     }
   };
 
-  const loadUnreadCount = async () => {
-    const count = await messagingService.getUnreadCount();
-    setUnreadCount(count);
-  };
-
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadConversations();
-    await loadUnreadCount();
-    setRefreshing(false);
+    setRefreshing(true); // Triggers the pull-to-refresh spinner
+    try {
+      const [data, count] = await Promise.all([
+        messagingService.getConversations(),
+        messagingService.getUnreadCount()
+      ]);
+      setConversations(data);
+      setUnreadCount(count);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleConversationPress = (conversation: Conversation) => {
-  router.push(`/chat/${conversation.uuid}`);
-};
+    router.push(`/chat/${conversation.uuid}`);
+  };
+
+  // Helper to format date cleanly
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -75,7 +93,7 @@ export default function MessagesScreen() {
       onPress={() => handleConversationPress(item)}
       activeOpacity={0.7}
     >
-      {/* Photo */}
+      {/* Photo / Avatar */}
       <View style={styles.photoContainer}>
         {item.other_user.photo_url ? (
           <Image
@@ -96,7 +114,7 @@ export default function MessagesScreen() {
         )}
       </View>
 
-      {/* Info */}
+      {/* Conversation Info */}
       <View style={styles.infoContainer}>
         <View style={styles.headerRow}>
           <Text
@@ -121,7 +139,7 @@ export default function MessagesScreen() {
               ]}
               numberOfLines={1}
             >
-              {item.latest_message.sender_username === 'You' && 'You: '}
+              {item.latest_message.sender_username === 'You' ? 'You: ' : ''}
               {item.latest_message.content}
             </Text>
           ) : (
@@ -130,7 +148,7 @@ export default function MessagesScreen() {
         </View>
       </View>
 
-      {/* Arrow */}
+      {/* Arrow Indicator */}
       <Ionicons
         name="chevron-forward"
         size={20}
@@ -139,6 +157,7 @@ export default function MessagesScreen() {
     </TouchableOpacity>
   );
 
+  // Initial Loading State (Centered Spinner)
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -159,7 +178,7 @@ export default function MessagesScreen() {
         )}
       </View>
 
-      {/* Empty State */}
+      {/* Content */}
       {conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons
@@ -197,6 +216,7 @@ export default function MessagesScreen() {
   );
 }
 
+/* ====================== STYLES ====================== */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
