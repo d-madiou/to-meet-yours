@@ -12,34 +12,38 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Platform,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 60;
 
 export default function FeedScreen() {
+  // Feed State
   const [users, setUsers] = useState<FeedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [swipedIds, setSwipedIds] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [now, setNow] = useState(new Date());
   
   // Stories state
   const [stories, setStories] = useState<UserStories[]>([]);
   const [loadingStories, setLoadingStories] = useState(true);
   const [currentUserId, setCurrentUserId] = useState('');
 
+  // Clock State
+  const [now, setNow] = useState(new Date());
+
   const flatListRef = useRef<FlatList>(null);
 
+  // --- Timer Effect ---
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -51,6 +55,7 @@ export default function FeedScreen() {
     hour12: true,
   });
 
+  // --- Data Loading ---
   const loadFeed = useCallback(async () => {
     try {
       const { results = [] } = await feedService.getFeed(20);
@@ -59,7 +64,8 @@ export default function FeedScreen() {
       setCurrentIndex(0);
     } catch (err: any) {
       if (err.response?.status !== 401) {
-        Alert.alert('Error', err.message ?? 'Failed to load feed');
+        // Silent fail preferred for feed to avoid spamming alerts
+        console.log('Feed load error:', err.message);
       }
       setUsers([]);
     } finally {
@@ -69,12 +75,12 @@ export default function FeedScreen() {
 
   const loadStoriesAndUser = useCallback(async () => {
     try {
-      // Get current user
       const user = await authService.getCurrentUser();
-      setCurrentUserId(String(user.id));
+      // Ensure ID is string to match story types
+      setCurrentUserId(String(user.id || user.uuid));
 
       const response = await storyService.getStories();
-      setStories(response.results);
+      setStories(response.results || response);
     } catch (error: any) {
       console.error('Failed to load stories:', error);
     } finally {
@@ -82,6 +88,7 @@ export default function FeedScreen() {
     }
   }, []);
 
+  // Initial Load
   useEffect(() => {
     loadFeed();
     loadStoriesAndUser();
@@ -93,18 +100,18 @@ export default function FeedScreen() {
     setRefreshing(false);
   };
 
+  // --- Handlers ---
   const handleViewStory = (userStories: UserStories) => {
-    // Navigate to story viewer
     router.push({
       pathname: '/story-viewer',
       params: {
         stories: JSON.stringify(userStories.stories),
+        initialStoryIndex: 0,
       },
     });
   };
 
   const handleAddStory = () => {
-    // Navigate to create story screen
     router.push('/create-story');
   };
 
@@ -119,6 +126,7 @@ export default function FeedScreen() {
         Alert.alert("It's a Match!", `You and ${user.username} liked each other!`);
       }
       
+      // Auto-scroll
       if (currentIndex < users.length - 1) {
         flatListRef.current?.scrollToIndex({
           index: currentIndex + 1,
@@ -126,6 +134,7 @@ export default function FeedScreen() {
         });
       }
     } catch (err: any) {
+      // Undo optimistic update on failure
       const revert = new Set(swipedIds);
       revert.delete(user.id);
       setSwipedIds(revert);
@@ -153,7 +162,25 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Stories Header - Shows at top */}
+      {/* 1. Gradient Background for Header Area (Behind text) */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.9)', 'rgba(0,0,0,0.4)', 'transparent']}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
+      {/* 2. Header Overlay (Location & Filter) */}
+      <View style={styles.headerOverlay}>
+        <View style={styles.locationBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.locationText}>Malaysia • {myTime}</Text>
+        </View>
+        <TouchableOpacity style={styles.filterIcon}>
+           <Ionicons name="options" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. Stories Header (Sticky Overlay) */}
       {!loadingStories && (
         <View style={styles.storiesWrapper}>
           <StoriesHeader
@@ -164,23 +191,8 @@ export default function FeedScreen() {
           />
         </View>
       )}
-      
-      <LinearGradient
-        colors={['rgba(0,0,0,0.8)', 'transparent']}
-        style={styles.topGradient}
-        pointerEvents="none"
-      />
 
-      {/* <View style={styles.headerOverlay}>
-        <View style={styles.locationBadge}>
-          <View style={styles.liveDot} />
-          <Text style={styles.locationText}>Malaysia • {myTime}</Text>
-        </View>
-        <View style={styles.filterIcon}>
-           <Ionicons name="options" size={20} color="#fff" />
-        </View>
-      </View> */}
-
+      {/* 4. Main Feed List */}
       {visibleUsers.length === 0 ? (
          <View style={styles.empty}>
             <View style={styles.emptyIconContainer}>
@@ -188,9 +200,9 @@ export default function FeedScreen() {
             </View>
             <Text style={styles.emptyTitle}>You're all caught up!</Text>
             <Text style={styles.emptySubtitle}>Check back later for new people.</Text>
-            <View style={styles.refreshButton}>
-               <Text style={styles.refreshText} onPress={onRefresh}>Refresh Feed</Text>
-            </View>
+            <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+               <Text style={styles.refreshText}>Refresh Feed</Text>
+            </TouchableOpacity>
          </View>
       ) : (
         <FlatList
@@ -216,7 +228,6 @@ export default function FeedScreen() {
             const idx = Math.round(e.nativeEvent.contentOffset.y / SCREEN_HEIGHT);
             setCurrentIndex(idx);
           }}
-          contentContainerStyle={styles.feedContent}
         />
       )}
     </View>
@@ -225,41 +236,44 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-
+  
+  // FIX: Make stories background transparent and position correctly
   storiesWrapper: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 110 : 90,
+    top: Platform.OS === 'ios' ? 105 : 85, // Positioned below the location header
     left: 0,
     right: 0,
     zIndex: 15,
-
-    marginTop: -72,
+    height: 100,
+    // Removed backgroundColor and borderBottomWidth to look cleaner
   },
   
+  // FIX: Increased gradient height to ensure stories text is readable
   topGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 220, // Covers header + stories area
     zIndex: 5,
   },
 
-  // headerOverlay: {
-  //   position: 'absolute',
-  //   top: Platform.OS === 'ios' ? 60 : 40,
-  //   left: 0,
-  //   right: 0,
-  //   zIndex: 10,
-  //   flexDirection: 'row',
-  //   justifyContent: 'space-between',
-  //   alignItems: 'center',
-  //   paddingHorizontal: 20,
-  // },
+  headerOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 0,
+    right: 0,
+    zIndex: 20, // Highest z-index to stay clickable
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+
   locationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -321,8 +335,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
-  },
-  
-  feedContent: {
   },
 });

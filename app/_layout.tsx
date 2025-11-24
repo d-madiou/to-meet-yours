@@ -83,7 +83,7 @@ function RootLayoutContent() {
     if (!isProfileComplete) {
       if (currentSegment !== "(auth)") {
         console.log("➡️ Redirecting to complete profile");
-        router.replace("/(auth)/makeprofile" as any);
+        router.replace("/profileinfo" as any);
       }
       return;
     }
@@ -121,6 +121,7 @@ function RootLayoutContent() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="profileinfo" />
         <Stack.Screen 
           name="chat/[id]" 
           options={{ 
