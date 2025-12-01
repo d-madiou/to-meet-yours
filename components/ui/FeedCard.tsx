@@ -33,7 +33,6 @@ export default function FeedCard({
 }: FeedCardProps) {
   return (
     <View style={styles.container}>
-      {/* Background Image */}
       {user.photo_url ? (
         <Image
           source={{ uri: user.photo_url }}
@@ -46,7 +45,6 @@ export default function FeedCard({
         </View>
       )}
 
-      {/* Gradient Overlay */}
       <LinearGradient
         colors={[
           'transparent',
@@ -59,7 +57,6 @@ export default function FeedCard({
       >
         <View style={styles.contentContainer}>
           <View style={styles.textWrapper}>
-            {/* Header: Name + Age + Verified */}
             <View style={styles.headerRow}>
               <Text style={styles.name}>{user.username}</Text>
               {user.age && (
@@ -72,7 +69,6 @@ export default function FeedCard({
               )}
             </View>
 
-            {/* Meta: Location + Gender */}
             <View style={styles.metaRow}>
               {user.city && (
                 <View style={styles.metaItem}>
@@ -93,7 +89,6 @@ export default function FeedCard({
               )}
             </View>
 
-            {/* Goal Pill */}
             {user.relationship_goal && (
               <View style={styles.goalPill}>
                 <Ionicons name="heart" size={10} color="white" />
@@ -101,7 +96,6 @@ export default function FeedCard({
               </View>
             )}
 
-            {/* Interest Tags */}
             {user.interests && user.interests.length > 0 && (
               <View style={styles.tagsRow}>
                 {user.interests.slice(0, 3).map((interest, index) => (
@@ -112,7 +106,6 @@ export default function FeedCard({
               </View>
             )}
 
-            {/* Bio */}
             {user.bio && (
               <Text style={styles.bio} numberOfLines={2}>
                 {user.bio}
@@ -122,7 +115,6 @@ export default function FeedCard({
         </View>
       </LinearGradient>
 
-      {/* Right Sidebar Actions */}
       <View style={styles.sideBar}>
         <TouchableOpacity
           style={styles.sideAction}
@@ -228,9 +220,8 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  // ✅ UPDATED BADGE STYLE
   ageBadge: {
-    backgroundColor: '#eeff00ff', // Yellow
+    backgroundColor: '#eeff00ff',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -265,11 +256,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  // ✅ UPDATED PILL STYLE
   goalPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF006E', // Pink
+    backgroundColor: '#FF006E',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
