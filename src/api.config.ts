@@ -1,4 +1,5 @@
 const isDev = process.env.NODE_ENV === 'development';
+// We gonna start with development URL and switch to production URL when deploying
 
 // Base API configuration
 export const API_CONFIG = {
