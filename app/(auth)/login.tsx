@@ -20,7 +20,6 @@ import {
   View,
 } from "react-native";
 
-// 🔐 Import Auth service and storage
 import { authService } from "@/src/services/api/auth.service";
 import { AuthStorage } from "@/src/utils/auth.storage";
 import { useNavigation } from 'expo-router';

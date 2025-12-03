@@ -1,4 +1,4 @@
-import { AuthProvider, useAuth } from "@/app/(tabs)/AuthContext"; // Import AuthProvider and useAuth
+import { AuthProvider, useAuth } from "@/app/(tabs)/AuthContext";
 import { Colors } from "@/constants/theme";
 import { notificationService } from "@/src/services/notification.service";
 import { Stack, useRouter, useSegments } from "expo-router";

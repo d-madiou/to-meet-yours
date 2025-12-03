@@ -7,9 +7,7 @@ import { Alert, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, Sty
 
 // TypeScript interface for props (if needed)
 interface LoginScreenProps {}
-
-// Placeholder image (replace with local asset or stable URL)
-const BACKGROUND_IMAGE = require('../assets/background.png'); // Add your local image in the assets folder
+const BACKGROUND_IMAGE = require('../assets/background.png');
 
 export default function LoginScreen({}: LoginScreenProps) {
   const handleSocialLogin = (platform: string) => {
@@ -56,7 +54,7 @@ export default function LoginScreen({}: LoginScreenProps) {
                 <Text style={styles.title}>Dating</Text>
                 <Text style={styles.title}>better than</Text>
                 <Text style={styles.title}>ever before</Text>
-                <Text style={styles.subtitle}>Let's have fun and meet people</Text>
+                <Text style={styles.subtitle}>Let's have fun and meet people we never knew before</Text>
               </View>
 
               <View style={styles.form}>

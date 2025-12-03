@@ -11,7 +11,7 @@ interface AuthContextType {
   isLoadingAuth: boolean;
   checkAuthSession: () => Promise<void>;
   logout: () => Promise<void>;
-  setUserProfile: (profile: Profile | null) => void; // Added for updating profile from other screens
+  setUserProfile: (profile: Profile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

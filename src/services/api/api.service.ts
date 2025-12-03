@@ -5,7 +5,7 @@ import { AuthStorage } from '../../utils/auth.storage';
 class ApiService {
   private axiosInstance: AxiosInstance;
   private token: string | null = null;
-  private isRefreshing = false; // Prevent multiple logout attempts
+  private isRefreshing = false;
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -20,7 +20,6 @@ class ApiService {
   }
 
   private setupInterceptors() {
-    // Request interceptor
     this.axiosInstance.interceptors.request.use(
       async (config) => {
         const token = await this.getToken();
@@ -28,11 +27,11 @@ class ApiService {
           config.headers.Authorization = `Token ${token}`;
         }
         
-        console.log(`🚀 [API Request]: ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`[API Request]: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        console.error('❌ [Request Error]:', error);
+        console.error('[Request Error]:', error);
         return Promise.reject(error);
       }
     );
@@ -40,16 +39,14 @@ class ApiService {
     // Response interceptor
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        console.log(`✅ [API Response]: ${response.config.url}`, response.status);
+        console.log(`[API Response]: ${response.config.url}`, response.status);
         return response;
       },
       async (error) => {
-        // Only log errors that aren't expected (like during logout)
-        // Suppress 401 errors during logout
         const isLogoutError = error.config?.url === '/auth/logout' && error.response?.status === 401;
 
         if ((error.response?.status !== 401 || !this.isRefreshing) && !isLogoutError) {
-          console.error("❌ [API Error]:", error.response?.data || error.message);
+          console.error("[API Error]:", error.response?.data || error.message);
         }
 
         // Handle 401 Unauthorized
@@ -57,7 +54,7 @@ class ApiService {
           // Prevent multiple simultaneous logout attempts
           if (!this.isRefreshing) {
             this.isRefreshing = true;
-            console.log('🔐 Token invalid, clearing auth data...');
+            console.log('Token invalid, clearing auth data...');
             
             try {
               await this.clearToken();

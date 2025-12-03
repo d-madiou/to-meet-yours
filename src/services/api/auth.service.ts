@@ -13,7 +13,7 @@ class AuthService {
   getUser(otherUserUuid: string): import("../../types/messaging.types").BaseUser | PromiseLike<import("../../types/messaging.types").BaseUser> {
     throw new Error('Method not implemented.');
   }
-  // 🔹 LOGIN
+  // LOGIN
   async login(credentials: LoginRequest): Promise<LoginResponse> {
   try {
     const response = await apiService.post<LoginResponse>(
@@ -33,7 +33,7 @@ class AuthService {
   }
 }
 
-  // 🔹 REGISTER
+  // REGISTER
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
     try {
       const response = await apiService.post<RegisterResponse>(
@@ -47,7 +47,7 @@ class AuthService {
     }
   }
 
-  // 🔹 LOGOUT
+  // LOGOUT
   async logout(): Promise<void> {
   try {
     // Try to call logout endpoint, but don't fail if it errors
@@ -56,10 +56,9 @@ class AuthService {
       console.log('Logout API call failed, but continuing with local cleanup');
     });
   } finally {
-    // Always clear local data regardless of API call result
     await AuthStorage.clearAll();
     await apiService.clearToken();
-    console.log('✅ Logout complete - all auth data cleared');
+    console.log('Logout complete - all auth data cleared');
   }
 }
 
@@ -77,7 +76,7 @@ async checkSession(): Promise<boolean> {
   }
 }
 
-  // 🔹 CURRENT USER
+  // CURRENT USER
   async getCurrentUser(): Promise<User> {
     try {
       const response = await apiService.get<LoginResponse>(ENDPOINTS.AUTH.ME);
@@ -87,7 +86,7 @@ async checkSession(): Promise<boolean> {
     }
   }
 
-  // 🔹 CHECK AUTHENTICATION STATUS
+  // CHECK AUTHENTICATION STATUS
   async isAuthenticated(): Promise<boolean> {
     try {
       await this.getCurrentUser();
@@ -98,7 +97,7 @@ async checkSession(): Promise<boolean> {
   }
   // Let's get my profile
 
-  // 🔹 ERROR HANDLER
+  // ERROR HANDLER
   private handleError(error: any): Error {
     if (error.response) {
       const errorData = error.response.data;

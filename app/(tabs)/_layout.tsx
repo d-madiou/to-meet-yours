@@ -14,10 +14,10 @@ export default function TabLayout() {
           backgroundColor: Colors.dark.background,
           borderTopColor: Colors.dark.inputBorder,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 85 : 60, // Taller on iOS for safe area
+          height: Platform.OS === 'ios' ? 85 : 60,
           paddingBottom: Platform.OS === 'ios' ? 25 : 8,
           paddingTop: 8,
-          position: 'absolute', // Make it float above content
+          position: 'absolute',
           elevation: 0,
         },
         tabBarLabelStyle: {
