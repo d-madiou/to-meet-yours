@@ -101,4 +101,5 @@ export const AuthStorage = {
     const token = await this.getToken();
     return !!token;
   },
+  // End of AuthStorage
 };

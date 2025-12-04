@@ -54,7 +54,7 @@ export default function LoginScreen({}: LoginScreenProps) {
                 <Text style={styles.title}>Dating</Text>
                 <Text style={styles.title}>better than</Text>
                 <Text style={styles.title}>ever before</Text>
-                <Text style={styles.subtitle}>Let's have fun and meet people we never knew before</Text>
+                <Text style={styles.subtitle}>Let's have fun and meet people</Text>
               </View>
 
               <View style={styles.form}>
