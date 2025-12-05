@@ -189,7 +189,7 @@ export default function FeedScreen() {
             <Text style={styles.emptyTitle}>You're all caught up!</Text>
             <Text style={styles.emptySubtitle}>Check back later for new people.</Text>
             <View style={styles.refreshButton}>
-               <Text style={styles.refreshText} onPress={onRefresh}>Refresh Feed</Text>
+               <Text style={styles.refreshText} onPress={onRefresh}>Refresh Feed now now</Text>
             </View>
          </View>
       ) : (
