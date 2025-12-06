@@ -143,7 +143,7 @@ export default function MessagesScreen() {
               {item.latest_message.content}
             </Text>
           ) : (
-            <Text style={styles.noMessages}>No messages yet</Text>
+            <Text style={styles.noMessages}>No messages yet Please a new one and start chatting</Text>
           )}
         </View>
       </View>
